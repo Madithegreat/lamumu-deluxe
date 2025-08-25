@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lamumu Deluxe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2e7d32" />
+
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- Optional: small perf nudge -->
+    <link rel="preload" as="image" href="./assets/img/bg_grass_1920.jpg" />
+    <link rel="preload" as="image" href="./assets/img/skull_end.png" />
+  </head>
+  <body>
+    <noscript>
+      <div class="nojs">
+        Lamumu Deluxe needs JavaScript enabled. Please enable JS to play.
+      </div>
+    </noscript>
+
+    <!-- Settings (How to Play) — pure CSS modal via :target -->
+    <a id="settingsBtn" href="#help" aria-haspopup="dialog" aria-controls="help" aria-label="Open settings / how to play">⚙️</a>
+
+    <div id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" class="help-modal">
+      <div class="help-card">
+        <h1 id="help-title">How to Play</h1>
+        <ul class="help-points">
+          <li>Survive for <b>10 minutes</b> — if the chain reaches the skull, you lose.</li>
+          <li><b>Aim</b> with mouse/touch. <b>Click / tap</b> to shoot.</li>
+          <li><b>Swap</b> the next ball with <b>Q</b> (desktop) or <b>double-tap</b> (mobile).</li>
+          <li>Match <b>3+</b> of the same color to clear.</li>
+          <li>Powerups (pop to trigger): <b>Reverse</b> (5s), <b>Slow</b> (7s), <b>Bomb</b> (area clear).</li>
+        </ul>
+        <a class="close" href="#" aria-label="Close settings">Close</a>
+      </div>
+    </div>
+
+    <!-- The game UI (HUD/canvas/menus) is created by game.js -->
+    <script src="./game.js" defer></script>
+  </body>
+</html>
