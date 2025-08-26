@@ -4,26 +4,21 @@
    ========================================================================= */
 
 (() => {
-  // ---- Filenames for image buttons (change if yours differ) ----
-  const BTN_PLAY_FILE  = "btn_play.png";
-  const BTN_RETRY_FILE = "btn_retry.png";
-
-  // ----------------------- Config -----------------------
   const ASSET_BASE = "./assets/img/"; // path to your images
 
   const GAME = {
     durationSec: 10 * 60,         // 10 minutes
     canvasMarginTop: 56,          // HUD height
-    ballRadius: 18,               // logical radius (px at DPR=1)
-    ballSpacing: 36.5,            // center-to-center target spacing
+    ballRadius: 18,               // px at DPR=1
+    ballSpacing: 36.5,            // center-to-center
     baseSpeed: 80,                // px/s along path at DPR=1
     projectileSpeed: 600,         // px/s
-    insertDistanceThreshold: 17,  // how close a shot must be to insert
-    powerupSpawnChance: 0.07,     // chance that a spawned ball is a PU
-    reverseDuration: 5.0,         // seconds
-    slowDuration: 7.0,            // seconds
-    slowFactor: 0.55,             // speed multiplier while slow is active
-    bombRadiusInBalls: 3,         // radius in “ball spacings”
+    insertDistanceThreshold: 17,  // px at DPR=1
+    powerupSpawnChance: 0.07,
+    reverseDuration: 5.0,
+    slowDuration: 7.0,
+    slowFactor: 0.55,
+    bombRadiusInBalls: 3,
     colors: [
       { name: "red",    img: "ball_red.png" },
       { name: "blue",   img: "ball_blue.png" },
@@ -31,16 +26,9 @@
       { name: "green",  img: "ball_green.png" },
       { name: "purple", img: "ball_purple.png" },
     ],
-    anchorsPct: [ // S-curve path anchors as percentages of canvas size
-      [0.08, 0.30],
-      [0.30, 0.18],
-      [0.55, 0.32],
-      [0.78, 0.22],
-      [0.90, 0.43],
-      [0.70, 0.62],
-      [0.45, 0.56],
-      [0.22, 0.76],
-      [0.10, 0.94],
+    anchorsPct: [
+      [0.08, 0.30],[0.30, 0.18],[0.55, 0.32],[0.78, 0.22],
+      [0.90, 0.43],[0.70, 0.62],[0.45, 0.56],[0.22, 0.76],[0.10, 0.94],
     ],
   };
 
@@ -68,16 +56,14 @@
   root.appendChild(canvas);
   const ctx = canvas.getContext("2d");
 
-  // Reusable overlay (used for splash + end screens)
+  // Reusable overlay (splash + end screens)
   const overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:#0008;backdrop-filter:blur(2px);";
   overlay.hidden = true;
   document.body.appendChild(overlay);
 
-  // Handles to existing DOM (settings modal + play/close buttons)
+  // Handles to Settings modal
   const settingsBtn = document.getElementById("settingsBtn");
-  const helpModal  = document.getElementById("help");
-  const helpPlay   = document.getElementById("playImgBtn");
   const helpClose  = document.getElementById("helpClose");
 
   // HUD refs
@@ -112,8 +98,6 @@
     ring_reverse: "ring_reverse.png",
     ball_shadow: "ball_shadow.png",
     cursor_reticle: "cursor_reticle.png",
-    btn_play: BTN_PLAY_FILE,
-    btn_retry: BTN_RETRY_FILE,
   };
   const imgs = {};
   function loadImages(map) {
@@ -265,14 +249,13 @@
     const dx = pointer.x - sx, dy = pointer.y - sy;
     const len = Math.hypot(dx, dy) || 1;
     fired.push({
-      x: sx,
-      y: sy,
+      x: sx, y: sy,
       vx: (dx / len) * (GAME.projectileSpeed * DPR),
       vy: (dy / len) * (GAME.projectileSpeed * DPR),
       color: shooter.current
     });
     shooter.current = shooter.next;
-    shooter.next = pickColor();
+    shooter.next = GAME.colors[(Math.random() * GAME.colors.length) | 0].name;
     shooter.cooldown = 0.12;
     shooter.flashT = 0.06;
   }
@@ -285,15 +268,15 @@
     effects.reverseUntil = 0; effects.slowUntil = 0;
     chain.length = 0; fired.length = 0; sparkles.length = 0; bursts.length = 0;
 
-    shooter.current = pickColor();
-    shooter.next = pickColor();
+    shooter.current = GAME.colors[(Math.random() * GAME.colors.length) | 0].name;
+    shooter.next = GAME.colors[(Math.random() * GAME.colors.length) | 0].name;
     shooter.cooldown = 0; shooter.flashT = 0;
 
     buildPath();
 
     let s = -SP() * 10;
     for (let i = 0; i < 20; i++) {
-      chain.push(makeBall(s, randomColorName(), maybePowerup()));
+      chain.push({ s, color: GAME.colors[(Math.random() * GAME.colors.length) | 0].name, pu: maybePowerup() });
       s += SP();
     }
 
@@ -302,14 +285,9 @@
 
     startTs = performance.now();
     overlay.hidden = true;
-
-    // stop pulsing the gear once we start
     settingsBtn && settingsBtn.classList.remove("pulse");
   }
 
-  function pickColor() { return GAME.colors[(Math.random() * GAME.colors.length) | 0].name; }
-  function randomColorName() { return pickColor(); }
-  function makeBall(s, colorName, powerup) { return { s, color: colorName, pu: powerup || null }; }
   function maybePowerup() {
     if (Math.random() < GAME.powerupSpawnChance) {
       const arr = ["reverse", "slow", "bomb"];
@@ -318,7 +296,7 @@
     return null;
   }
 
-  // Splash screen with logo; directs user to settings
+  // Start / End overlays
   function showSplash() {
     state = "splash";
     overlay.hidden = false;
@@ -328,34 +306,31 @@
           ${imgs.logo ? `<img src="${imgs.logo.src}" alt="Lamumu Deluxe" style="max-width:420px;width:80%;height:auto;filter:drop-shadow(0 12px 28px rgba(0,0,0,.3))" />` : `<h1 style="margin:0">Lamumu Deluxe</h1>`}
         </div>
         <p style="margin:.25rem 0 1rem 0;line-height:1.55">
-          Tap the <b>⚙️ Settings</b> button (top-right) to read a quick guide, then press <b>Play</b>.
+          Tap <b>⚙️ Settings</b> (top-right) for a quick guide, or start now.
         </p>
-        <p style="opacity:.7;margin:0">Good luck! Survive for <b>10 minutes</b> 🐄🌾</p>
+        <button id="btnStart" class="primary-btn">Start Game</button>
       </div>
     `;
-    // keep gear pulsing to direct attention
     settingsBtn && settingsBtn.classList.add("pulse");
+    overlay.querySelector("#btnStart").addEventListener("click", (e) => {
+      e.preventDefault();
+      closeHelp();
+      resetGame();
+    });
   }
 
-  // End overlays (win/lose) with image buttons
-  function showEndOverlay({ title, sub, type }) {
+  function showEndOverlay({ title, sub }) {
     overlay.hidden = false;
-    const imgBtnKey = type === "retry" ? "btn_retry" : "btn_play";
-    const img = imgs[imgBtnKey];
     overlay.innerHTML = `
       <div style="max-width:760px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:center">
         <h2 style="margin:.2rem 0 .6rem 0;font-size:1.4rem">${title}</h2>
         <p style="margin:.25rem 0 1rem 0;line-height:1.55">${sub}</p>
-        <a id="endImgBtn" href="#" class="img-btn">
-          ${img ? `<img alt="${type}" src="${img.src}">` : ""}
-          <span class="fallback">${type === "retry" ? "Retry" : "Play Again"}</span>
-        </a>
+        <button id="btnRetry" class="primary-btn">Start Game</button>
       </div>
     `;
-    const btn = document.getElementById("endImgBtn");
-    btn?.addEventListener("click", (e) => {
+    overlay.querySelector("#btnRetry").addEventListener("click", (e) => {
       e.preventDefault();
-      closeHelp(); // just to be safe, ensure no hash
+      closeHelp();
       resetGame();
     });
   }
@@ -364,50 +339,32 @@
     state = "won";
     showEndOverlay({
       title: "You Win! 🐄🌾",
-      sub: `Survived 10 minutes.<br/>Final score: <b>${score}</b>`,
-      type: "play" // play again
+      sub: `Survived 10 minutes.<br/>Final score: <b>${score}</b>`
     });
   }
   function lose() {
     state = "lost";
     showEndOverlay({
       title: "They Reached the Barn! 💀",
-      sub: `You lasted <b>${fmtTime(GAME.durationSec - timeLeft)}</b>.<br/>Final score: <b>${score}</b>`,
-      type: "retry"
+      sub: `You lasted <b>${fmtTime(GAME.durationSec - timeLeft)}</b>.<br/>Final score: <b>${score}</b>`
     });
   }
 
-  // --- Hash helpers to reliably close the :target modal ---
+  // --- Hash helpers: reliably close the :target modal ---
   function closeHelp() {
     if (location.hash === "#help") {
-      if (history.replaceState) {
-        history.replaceState(null, "", location.pathname + location.search);
-      } else {
-        // fallback
-        location.hash = "";
-      }
+      if (history.replaceState) history.replaceState(null, "", location.pathname + location.search);
+      else location.hash = "";
     }
   }
-  // Keep splash overlay hidden while help is open (so clicks won't fight)
+  // Hide splash overlay while Help is open (avoid click overlap)
   window.addEventListener("hashchange", () => {
-    if (location.hash === "#help") {
-      overlay.hidden = true;
-    } else if (state === "splash") {
-      overlay.hidden = false;
-    }
+    if (location.hash === "#help") overlay.hidden = true;
+    else if (state === "splash") overlay.hidden = false;
   });
 
-  // Settings modal Play image button starts game
-  helpPlay?.addEventListener("click", (e) => {
-    e.preventDefault();
-    closeHelp();
-    resetGame();
-  });
-  // Settings modal Close button
-  helpClose?.addEventListener("click", (e) => {
-    e.preventDefault();
-    closeHelp();
-  });
+  // Settings modal Close
+  helpClose?.addEventListener("click", (e) => { e.preventDefault(); closeHelp(); });
 
   // ------------------- Update Loop ----------------------
   let lastTs = performance.now();
@@ -440,7 +397,7 @@
     if (timeLeft > 0) {
       const minS = chain.length ? chain[0].s : 0;
       while (minS > spawnMinS) {
-        chain.unshift(makeBall(chain[0] ? chain[0].s - SP() : -SP(), randomColorName(), maybePowerup()));
+        chain.unshift({ s: chain[0] ? chain[0].s - SP() : -SP(), color: GAME.colors[(Math.random()*GAME.colors.length)|0].name, pu: maybePowerup() });
       }
     }
 
@@ -468,7 +425,7 @@
       const d = Math.hypot(p.x - b.x, p.y - b.y);
       if (d < (GAME.insertDistanceThreshold * DPR)) {
         let idx = 0; while (idx < chain.length && chain[idx].s < sHit) idx++;
-        chain.splice(idx, 0, makeBall(sHit, b.color, null));
+        chain.splice(idx, 0, { s: sHit, color: b.color, pu: null });
         fired.splice(i, 1);
         settleAround(idx);
         handleMatchesAndPowerups(idx);
@@ -735,16 +692,28 @@
   function init() {
     resizeCanvas();
     buildPath();
-    // center pointer initially
     pointer.x = canvas.width / 2;
     pointer.y = canvas.height / 2 - 200 * DPR;
-
-    // show splash with logo
     showSplash();
     requestAnimationFrame(gameLoop);
   }
 
-  function setupLogo() { if (imgs.logo) { $logo.src = imgs.logo.src; $logo.style.display = "block"; } }
+  function setupLogo() {
+    if (imgs.logo) { $logo.src = imgs.logo.src; $logo.style.display = "block"; }
+  }
+
+  // Close settings modal
+  function closeHelp() {
+    if (location.hash === "#help") {
+      if (history.replaceState) history.replaceState(null, "", location.pathname + location.search);
+      else location.hash = "";
+    }
+  }
+  helpClose?.addEventListener("click", (e) => { e.preventDefault(); closeHelp(); });
+  window.addEventListener("hashchange", () => {
+    if (location.hash === "#help") overlay.hidden = true;
+    else if (state === "splash") overlay.hidden = false;
+  });
 
   loadImages(IMGS).then(() => { setupLogo(); init(); })
   .catch(err => {
