@@ -16,7 +16,7 @@
       </div>
     </noscript>
 
-    <!-- Settings (How to Play) — pure CSS modal via :target -->
+    <!-- Settings (How to Play) — pure CSS modal via :target, JS ensures close -->
     <a id="settingsBtn" class="pulse" href="#help" aria-haspopup="dialog" aria-controls="help" aria-label="Open settings / how to play">⚙️</a>
 
     <div id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" class="help-modal">
@@ -36,11 +36,11 @@
           <span class="fallback">Play</span>
         </a>
 
-        <a class="close" href="#" aria-label="Close settings">Close</a>
+        <a id="helpClose" class="close" href="#" aria-label="Close settings">Close</a>
       </div>
     </div>
 
-    <!-- The rest (HUD/canvas/overlays) is created by game.js -->
+    <!-- The game UI (HUD/canvas/overlays) is created by game.js -->
     <script src="./game.js" defer></script>
   </body>
 </html>
