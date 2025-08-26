@@ -18,11 +18,8 @@
     slowFactor: 0.55,
     bombRadiusInBalls: 3,
     colors: [
-      { name: "red",    img: "ball_red.png" },
-      { name: "blue",   img: "ball_blue.png" },
-      { name: "yellow", img: "ball_yellow.png" },
-      { name: "green",  img: "ball_green.png" },
-      { name: "purple", img: "ball_purple.png" },
+      { name: "red" }, { name: "blue" }, { name: "yellow" },
+      { name: "green" }, { name: "purple" },
     ],
     anchorsPct: [
       [0.08,0.30],[0.30,0.18],[0.55,0.32],[0.78,0.22],
@@ -30,7 +27,7 @@
     ],
   };
 
-  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const lerp  = (a,b,t)=>a+(b-a)*t;
 
@@ -56,48 +53,48 @@
   root.appendChild(canvas);
   const ctx = canvas.getContext("2d");
 
-  // Single overlay used for Splash & End screens
+  // ---------- Overlay (Splash/End) with strict show/hide ----------
   const overlay = document.createElement("div");
-  overlay.style.cssText = "position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:#0008;backdrop-filter:blur(2px);z-index:1200;pointer-events:auto;";
-  overlay.hidden = true;
+  overlay.style.cssText = "position:fixed;inset:0;display:none;place-items:center;padding:20px;background:#0008;backdrop-filter:blur(2px);z-index:1200;";
   document.body.appendChild(overlay);
 
-  // Settings (Help) modal (JS-driven)
+  const showOverlay = (html) => {
+    overlay.innerHTML = html;
+    overlay.style.display = "grid";
+  };
+  const hideOverlay = () => {
+    overlay.style.display = "none";
+    overlay.innerHTML = "";
+  };
+
+  // ---------- Help modal (JS-driven only) ----------
   const settingsBtn = document.getElementById("settingsBtn");
   const help = document.getElementById("help");
-  let overlayWasHidden = true;
-  const openHelp = () => {
-    overlayWasHidden = overlay.hidden;
-    overlay.hidden = true;           // never stack overlays
-    help.classList.add("open");
-    settingsBtn?.classList.remove("pulse");
-  };
-  const closeHelp = () => {
-    help.classList.remove("open");
-    overlay.hidden = overlayWasHidden;
-  };
-  // Open / Close handlers
-  settingsBtn?.addEventListener("click", (e)=>{ e.preventDefault(); openHelp(); });
-  document.addEventListener("click",(e)=>{
-    const a = e.target.closest("[data-action]");
-    if (!a) return;
-    const act = a.getAttribute("data-action");
-    if (act === "close-help") { e.preventDefault(); closeHelp(); }
-    if (act === "start" || act === "retry") { e.preventDefault(); closeHelp(); resetGame(); }
-  });
-  // Click outside the card closes help
+  const openHelp = () => { hideOverlay(); help.classList.add("open"); settingsBtn?.classList.remove("pulse"); };
+  const closeHelp = () => help.classList.remove("open");
+
+  settingsBtn?.addEventListener("click",(e)=>{ e.preventDefault(); openHelp(); });
   help.addEventListener("click",(e)=>{ if (e.target === help) closeHelp(); });
-  // Esc closes help
-  window.addEventListener("keydown",(e)=>{ if (e.key === "Escape" && help.classList.contains("open")) closeHelp(); });
+  addEventListener("keydown",(e)=>{ if (e.key === "Escape") closeHelp(); });
+
+  // ---------- Delegated buttons ----------
+  document.addEventListener("click",(e)=>{
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const act = btn.getAttribute("data-action");
+    if (act === "close-help") { e.preventDefault(); closeHelp(); }
+    if (act === "start" || act === "retry") { e.preventDefault(); startGame(); }
+  });
 
   // ---------- HUD refs ----------
   const $timer = hud.querySelector("#timer");
   const $score = hud.querySelector("#score");
   const $activePU = hud.querySelector("#activePU");
-  const $logo  = hud.querySelector("#logo");
+  const $logo = hud.querySelector("#logo");
 
   // ---------- Assets ----------
-  const IMGS = {
+  const imgs = {};
+  const files = {
     cow_base:"cow_base.png", cow_body:"cow_body.png", muzzle_flash:"muzzle_flash.png",
     ball_base:"ball_base.png", ball_red:"ball_red.png", ball_blue:"ball_blue.png",
     ball_yellow:"ball_yellow.png", ball_green:"ball_green.png", ball_purple:"ball_purple.png",
@@ -108,19 +105,19 @@
     ring_slow:"ring_slow.png", ring_reverse:"ring_reverse.png",
     ball_shadow:"ball_shadow.png", cursor_reticle:"cursor_reticle.png",
   };
-  const imgs = {};
-  const loadImages = (map) => Promise.all(Object.entries(map).map(([k,file])=>new Promise((res,rej)=>{
-    const img = new Image();
-    img.onload=()=>{ imgs[k]=img; res(); };
-    img.onerror=()=>rej(new Error("Failed to load "+file));
-    img.src = ASSET_BASE + file;
+  const loadImages = () => Promise.all(Object.entries(files).map(([k,f])=> new Promise((res,rej)=>{
+    const im = new Image();
+    im.onload=()=>{ imgs[k]=im; res(); };
+    im.onerror=()=>rej(new Error("Failed to load "+f));
+    im.src = ASSET_BASE + f;
   })));
 
   // ---------- Geometry / Path ----------
   function resizeCanvas(){
-    const w = innerWidth, h = innerHeight;
-    canvas.style.width = w+"px"; canvas.style.height = h+"px";
-    canvas.width = Math.floor(w * DPR); canvas.height = Math.floor(h * DPR);
+    canvas.width  = Math.floor(innerWidth  * DPR);
+    canvas.height = Math.floor(innerHeight * DPR);
+    canvas.style.width  = innerWidth + "px";
+    canvas.style.height = innerHeight + "px";
   }
   addEventListener("resize",()=>{ resizeCanvas(); buildPath(); });
 
@@ -145,11 +142,12 @@
       y:0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3),
     };
   }
+  const lerpPt = (a,b,t)=>({ x:lerp(a.x,b.x,t), y:lerp(a.y,b.y,t) });
   function posAtS(s){
     const ss=clamp(s,0,pathLen); let lo=0,hi=cumLen.length-1;
     while(lo<hi){ const mid=(lo+hi)>>1; if(cumLen[mid]<ss) lo=mid+1; else hi=mid; }
     const i=Math.max(1,lo), s0=cumLen[i-1], s1=cumLen[i], t=(s1-s0)>0?(ss-s0)/(s1-s0):0;
-    const a=pathPts[i-1], b=pathPts[i]; return { x:lerp(a.x,b.x,t), y:lerp(a.y,b.y,t), i, t };
+    return lerpPt(pathPts[i-1], pathPts[i], t);
   }
   function nearestSForPoint(px,py){
     let bestIdx=1,best=Infinity;
@@ -160,7 +158,7 @@
   }
 
   // ---------- Game state ----------
-  const R=()=>GAME.ballRadius*DPR, SP=()=>GAME.ballSpacing*DPR;
+  const R = ()=>GAME.ballRadius*DPR, SP=()=>GAME.ballSpacing*DPR;
   let state="splash", score=0, timeLeft=GAME.durationSec, startTs=0, paused=false;
 
   const pointer={x:0,y:0,lastTapTs:0};
@@ -169,14 +167,14 @@
   const chain=[], fired=[], sparkles=[], bursts=[];
   const effects={ reverseUntil:0, slowUntil:0 };
 
-  // ---------- Input on canvas ----------
-  function setPointerFromEvent(x,y){ const r=canvas.getBoundingClientRect(); pointer.x=(x-r.left)*DPR; pointer.y=(y-r.top)*DPR; }
-  canvas.addEventListener("mousemove",(e)=>setPointerFromEvent(e.clientX,e.clientY));
+  // ---------- Input ----------
+  function setPointer(x,y){ const r=canvas.getBoundingClientRect(); pointer.x=(x-r.left)*DPR; pointer.y=(y-r.top)*DPR; }
+  canvas.addEventListener("mousemove",(e)=>setPointer(e.clientX,e.clientY));
   canvas.addEventListener("mousedown",()=>{ if(state==="playing") shoot(); });
-  canvas.addEventListener("touchstart",(e)=>{ if(!e.touches.length) return; const t=e.touches[0]; setPointerFromEvent(t.clientX,t.clientY);
+  canvas.addEventListener("touchstart",(e)=>{ if(!e.touches.length) return; const t=e.touches[0]; setPointer(t.clientX,t.clientY);
     if(state==="playing"){ const now=performance.now(); if(now-pointer.lastTapTs<280) swapColors(); else shoot(); pointer.lastTapTs=now; }
     e.preventDefault(); },{passive:false});
-  canvas.addEventListener("touchmove",(e)=>{ if(!e.touches.length) return; const t=e.touches[0]; setPointerFromEvent(t.clientX,t.clientY); },{passive:true});
+  canvas.addEventListener("touchmove",(e)=>{ if(!e.touches.length) return; const t=e.touches[0]; setPointer(t.clientX,t.clientY); },{passive:true});
   addEventListener("keydown",(e)=>{ if(state!=="playing") return; const k=e.key.toLowerCase(); if(k==="q") swapColors(); if(k===" ") shoot(); if(k==="p") paused=!paused; });
 
   function swapColors(){ const t=shooter.current; shooter.current=shooter.next; shooter.next=t; }
@@ -188,15 +186,22 @@
   }
 
   // ---------- Flow ----------
-  function resetGame(){
+  function startGame(){
+    // force-close everything visible first
+    closeHelp();
+    hideOverlay();
+
     score=0; timeLeft=GAME.durationSec; state="playing"; effects.reverseUntil=effects.slowUntil=0;
     chain.length=0; fired.length=0; sparkles.length=0; bursts.length=0;
+
     shooter.current=pickColor(); shooter.next=pickColor(); shooter.cooldown=0; shooter.flashT=0;
+
     buildPath();
     let s=-SP()*10; for(let i=0;i<20;i++){ chain.push(makeBall(s,pickColor(),maybePowerup())); s+=SP(); }
+
     pointer.x=canvas.width/2; pointer.y=canvas.height/2-200*DPR;
-    startTs=performance.now(); overlay.hidden=true; settingsBtn?.classList.remove("pulse");
-    closeHelp(); // just in case
+    startTs=performance.now();
+    settingsBtn?.classList.remove("pulse");
   }
 
   const pickColor=()=>GAME.colors[(Math.random()*GAME.colors.length)|0].name;
@@ -204,31 +209,32 @@
   function maybePowerup(){ if(Math.random()<GAME.powerupSpawnChance){ const a=["reverse","slow","bomb"]; return a[(Math.random()*a.length)|0]; } return null; }
 
   function showSplash(){
-    state="splash"; overlay.hidden=false;
-    overlay.innerHTML = `
+    state="splash";
+    showOverlay(`
       <div style="max-width:760px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:center">
         <div style="margin:.5rem 0 1rem 0">
           ${imgs.logo ? `<img src="${imgs.logo.src}" alt="Lamumu Deluxe" style="max-width:420px;width:80%;height:auto;filter:drop-shadow(0 12px 28px rgba(0,0,0,.3))" />` : `<h1 style="margin:0">Lamumu Deluxe</h1>`}
         </div>
         <p style="margin:.25rem 0 1rem 0;line-height:1.55">Tap <b>⚙️ Settings</b> for a quick guide, or start now.</p>
         <button class="primary-btn" data-action="start">Start Game</button>
-      </div>`;
+      </div>
+    `);
     settingsBtn?.classList.add("pulse");
   }
 
-  function showEndOverlay({title,sub}){
-    closeHelp(); // ensure Help isn't visible behind
-    overlay.hidden=false;
-    overlay.innerHTML = `
+  function showEnd({title,sub}){
+    closeHelp(); // guarantee Help isn't behind
+    showOverlay(`
       <div style="max-width:760px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:center">
         <h2 style="margin:.2rem 0 .6rem 0;font-size:1.4rem">${title}</h2>
         <p style="margin:.25rem 0 1rem 0;line-height:1.55">${sub}</p>
         <button class="primary-btn" data-action="retry">Start Game</button>
-      </div>`;
+      </div>
+    `);
   }
 
-  function win(){ state="won"; showEndOverlay({title:"You Win! 🐄🌾", sub:`Survived 10 minutes.<br/>Final score: <b>${score}</b>`}); }
-  function lose(){ state="lost"; showEndOverlay({title:"They Reached the Barn! 💀", sub:`You lasted <b>${fmtTime(GAME.durationSec - timeLeft)}</b>.<br/>Final score: <b>${score}</b>`}); }
+  const win = ()=>{ state="won"; showEnd({title:"You Win! 🐄🌾", sub:`Survived 10 minutes.<br/>Final score: <b>${score}</b>`}); };
+  const lose = ()=>{ state="lost"; showEnd({title:"They Reached the Barn! 💀", sub:`You lasted <b>${fmtTime(GAME.durationSec - timeLeft)}</b>.<br/>Final score: <b>${score}</b>`}); };
 
   // ---------- Update / Draw ----------
   let lastTs=performance.now();
@@ -249,7 +255,7 @@
     const reverseActive=ts<effects.reverseUntil*1000, slowActive=ts<effects.slowUntil*1000;
     const dir=reverseActive?-1:1, speed=(GAME.baseSpeed*(slowActive?GAME.slowFactor:1))*DPR;
 
-    // Safe tail-feed (prevents infinite loop)
+    // Safe tail feed (no infinite loop)
     if (timeLeft>0){
       let guard=0;
       while ((chain.length===0 || chain[0].s>spawnMinS) && guard++<2000){
@@ -278,7 +284,7 @@
       const sHit=nearestSForPoint(b.x,b.y), p=posAtS(sHit);
       if(Math.hypot(p.x-b.x,p.y-b.y)<(GAME.insertDistanceThreshold*DPR)){
         let idx=0; while(idx<chain.length && chain[idx].s<sHit) idx++;
-        chain.splice(idx,0,makeBall(sHit,b.color,null));
+        chain.splice(idx,0,{s:sHit,color:b.color,pu:null});
         fired.splice(i,1);
         settleAround(idx);
         handleMatchesAndPowerups(idx);
@@ -342,16 +348,16 @@
 
   // ---------- Drawing ----------
   function draw(){
-    ctx.clearRect(0,0,canvas.width,canvas.height); drawBackground();
+    ctx.clearRect(0,0,canvas.width,canvas.height); drawBG();
 
     // path ribbon
     ctx.save(); ctx.strokeStyle="rgba(255,255,255,0.04)"; ctx.lineWidth=14*DPR; ctx.lineCap="round";
     ctx.beginPath(); for(let i=1;i<pathPts.length;i++){ const a=pathPts[i-1], b=pathPts[i]; ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); } ctx.stroke(); ctx.restore();
 
-    // skull end
+    // skull
     const end=pathPts[pathPts.length-1]; if(imgs.skull_end){ const sz=46*DPR; ctx.drawImage(imgs.skull_end,end.x-sz/2,end.y-sz/2,sz,sz); }
 
-    // active rings near head
+    // effect rings near head
     const nowS=performance.now()/1000, head=chain[chain.length-1];
     if(head){ const hp=posAtS(head.s);
       if(nowS<effects.reverseUntil && imgs.ring_reverse){ const size=140*DPR; ctx.globalAlpha=.75; ctx.drawImage(imgs.ring_reverse,hp.x-size/2,hp.y-size/2,size,size); ctx.globalAlpha=1; }
@@ -384,7 +390,7 @@
     drawShooter();
   }
 
-  function drawBackground(){
+  function drawBG(){
     const img=imgs.bg_grass_1920;
     if(!img){ const g=ctx.createLinearGradient(0,0,0,canvas.height); g.addColorStop(0,"#66bb6a"); g.addColorStop(1,"#2e7d32"); ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
     const iw=img.naturalWidth, ih=img.naturalHeight, ar=iw/ih, cw=canvas.width, ch=canvas.height, car=cw/ch;
@@ -423,20 +429,9 @@
   }
   function setupLogo(){ if(imgs.logo){ $logo.src=imgs.logo.src; $logo.style.display="block"; } }
 
-  loadImages({
-    cow_base:"cow_base.png", cow_body:"cow_body.png", muzzle_flash:"muzzle_flash.png",
-    ball_base:"ball_base.png", ball_red:"ball_red.png", ball_blue:"ball_blue.png",
-    ball_yellow:"ball_yellow.png", ball_green:"ball_green.png", ball_purple:"ball_purple.png",
-    icon_bomb:"icon_bomb.png", icon_slow:"icon_slow.png", icon_reverse:"icon_reverse.png",
-    sparkle:"sparkle.png", explosion_burst:"explosion_burst.png",
-    hud_bomb:"hud_bomb.png", hud_reverse:"hud_reverse.png", hud_slow:"hud_slow.png",
-    logo:"logo.png", skull_end:"skull_end.png", bg_grass_1920:"bg_grass_1920.jpg",
-    ring_slow:"ring_slow.png", ring_reverse:"ring_reverse.png",
-    ball_shadow:"ball_shadow.png", cursor_reticle:"cursor_reticle.png",
-  }).then(()=>{ setupLogo(); init(); })
-    .catch(err=>{
-      overlay.hidden=false;
-      overlay.innerHTML=`<div style="max-width:720px;background:#ffffffe6;color:#111;border-radius:18px;padding:16px 18px;box-shadow:0 24px 60px #0006;text-align:center">
-        <h2>Asset Load Error</h2><p>${err.message}</p></div>`;
-    });
+  loadImages().then(()=>{ setupLogo(); init(); })
+  .catch(err=>{
+    showOverlay(`<div style="max-width:720px;background:#ffffffe6;color:#111;border-radius:18px;padding:16px 18px;box-shadow:0 24px 60px #0006;text-align:center">
+      <h2>Asset Load Error</h2><p>${err.message}</p></div>`);
+  });
 })();
