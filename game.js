@@ -387,9 +387,10 @@
     const speed = (GAME.baseSpeed * (slowActive ? GAME.slowFactor : 1)) * DPR;
 
     if (timeLeft > 0) {
-      const minS = chain.length ? chain[0].s : 0;
-      while (minS > spawnMinS) {
-        chain.unshift(makeBall(chain[0] ? chain[0].s - SP() : -SP(), pickColor(), maybePowerup()));
+      let guard = 0; // absolute safety guard
+      while ((chain.length === 0 || chain[0].s > spawnMinS) && guard++ < 2000) {
+        const s = chain.length ? chain[0].s - SP() : -SP();
+        chain.unshift({ s, color: pickColor(), pu: maybePowerup() });
       }
     }
 
