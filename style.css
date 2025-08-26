@@ -22,13 +22,10 @@ img { -webkit-user-drag: none; user-drag: none; }
 
 .nojs {
   min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  padding: 2rem;
+  display: grid; place-items: center;
+  text-align: center; padding: 2rem;
   background: radial-gradient(1000px 700px at 50% 30%, var(--grass-1), var(--grass-2));
-  color: var(--ink);
-  font-weight: 600;
+  color: var(--ink); font-weight: 600;
 }
 
 /* Canvas fallback (JS sizes it precisely) */
@@ -42,8 +39,8 @@ img { -webkit-user-drag: none; user-drag: none; }
   position: fixed; top: 10px; right: 10px; z-index: 1500;
   display: grid; place-items: center;
   width: 40px; height: 40px; border-radius: 999px;
-  background: #ffffffe6; color: var(--ink); text-decoration: none;
-  font-size: 18px; font-weight: 700;
+  background: #ffffffe6; color: var(--ink);
+  font-size: 18px; font-weight: 700; border: 0; cursor: pointer;
   box-shadow: 0 6px 18px rgba(0,0,0,.25);
 }
 #settingsBtn:hover { filter: brightness(0.97); }
@@ -54,13 +51,14 @@ img { -webkit-user-drag: none; user-drag: none; }
   50%      { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
 }
 
-/* How-to modal */
+/* How-to modal (JS toggles .open) */
 .help-modal {
-  position: fixed; inset: 0; display: none; place-items: center;
+  position: fixed; inset: 0;
+  display: none; place-items: center;
   padding: 20px; background: rgba(0,0,0,.5); backdrop-filter: blur(2px);
-  z-index: 1100;
+  z-index: 1300; /* above game overlay */
 }
-.help-modal:target { display: grid; }
+.help-modal.open { display: grid; }
 
 .help-card {
   width: min(720px, calc(100% - 24px));
@@ -76,23 +74,19 @@ img { -webkit-user-drag: none; user-drag: none; }
   display: inline-block; padding: .6rem 1rem; border-radius: 12px;
   background: var(--ink); color: #fff; text-decoration: none;
   font-weight: 700; box-shadow: 0 10px 24px rgba(0,0,0,.25);
+  border: 0; cursor: pointer;
 }
 
 /* Shared primary button used in splash & end screens */
 .primary-btn {
-  border: 0;
-  border-radius: 14px;
-  padding: .9rem 1.3rem;
-  background: #111;
-  color: #fff;
-  font-weight: 800;
-  font-size: 1rem;
-  cursor: pointer;
+  border: 0; border-radius: 14px;
+  padding: .9rem 1.3rem; background: #111; color: #fff;
+  font-weight: 800; font-size: 1rem; cursor: pointer;
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
 }
 .primary-btn:active { transform: translateY(1px); }
 
-/* HUD pills */
+/* HUD pill utility (duplicated in JS inline too) */
 .pill {
   padding: .35rem .7rem; border-radius: 999px;
   background: color-mix(in srgb, var(--paper) 92%, transparent);
