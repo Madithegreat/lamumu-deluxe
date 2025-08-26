@@ -32,91 +32,76 @@ img { -webkit-user-drag: none; user-drag: none; }
   font-weight: 600;
 }
 
-/* Canvas element (created by JS) gets these as fallbacks */
-#gameCanvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  touch-action: none;
-}
+/* Canvas fallback (JS sizes it precisely) */
+#gameCanvas { display:block; width:100%; height:100%; touch-action:none; }
 
 /* Hide tap highlight on mobile */
 * { -webkit-tap-highlight-color: transparent; }
 
 /* ===== Settings Button (fixed, top-right) ===== */
 #settingsBtn {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: #ffffffe6;
-  color: var(--ink);
-  text-decoration: none;
-  font-size: 18px;
-  font-weight: 700;
+  position: fixed; top: 10px; right: 10px; z-index: 1000;
+  display: grid; place-items: center;
+  width: 40px; height: 40px; border-radius: 999px;
+  background: #ffffffe6; color: var(--ink); text-decoration: none;
+  font-size: 18px; font-weight: 700;
   box-shadow: 0 6px 18px rgba(0,0,0,.25);
 }
 #settingsBtn:hover { filter: brightness(0.97); }
 #settingsBtn:active { transform: translateY(1px); }
+#settingsBtn.pulse { animation: gearPulse 1.2s ease-in-out infinite; }
+@keyframes gearPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.45); }
+  50%      { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+}
 
 /* ===== Help Modal (pure CSS via :target) ===== */
 .help-modal {
-  position: fixed;
-  inset: 0;
-  display: none;
-  place-items: center;
-  padding: 20px;
-  background: rgba(0,0,0,.5);
-  backdrop-filter: blur(2px);
+  position: fixed; inset: 0; display: none; place-items: center;
+  padding: 20px; background: rgba(0,0,0,.5); backdrop-filter: blur(2px);
   z-index: 1100; /* above HUD from game.js */
 }
 .help-modal:target { display: grid; }
 
 .help-card {
   width: min(720px, calc(100% - 24px));
-  background: #ffffffe6;
-  color: var(--ink);
-  border-radius: 18px;
-  padding: 16px 18px;
-  box-shadow: 0 24px 60px rgba(0,0,0,.4);
+  background: #ffffffe6; color: var(--ink);
+  border-radius: 18px; padding: 16px 18px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.4); text-align: center;
 }
-.help-card h1 {
-  margin: .2rem 0 .6rem 0;
-  font-size: 1.3rem;
-}
-.help-points {
-  margin: .25rem 0 1rem 1rem;
-  line-height: 1.55;
-}
+.help-card h1 { margin: .2rem 0 .6rem 0; font-size: 1.3rem; }
+.help-points { margin: .25rem 0 1rem 1rem; line-height: 1.55; }
 .help-points li { margin: .25rem 0; }
 
 .help-card .close {
-  display: inline-block;
-  padding: .6rem 1rem;
-  border-radius: 12px;
-  background: var(--ink);
-  color: #fff;
-  text-decoration: none;
-  font-weight: 700;
-  box-shadow: 0 10px 24px rgba(0,0,0,.25);
+  display: inline-block; padding: .6rem 1rem; border-radius: 12px;
+  background: var(--ink); color: #fff; text-decoration: none;
+  font-weight: 700; box-shadow: 0 10px 24px rgba(0,0,0,.25);
 }
 
-/* Utility pill (JS may add classnames later) */
+/* Image button wrapper: shows image; text fallback if image fails */
+.img-btn {
+  display: inline-grid; place-items: center; margin: 0 .6rem 1rem;
+  text-decoration: none;
+}
+.img-btn img {
+  width: 160px; height: auto; image-rendering: auto;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,.35));
+}
+.img-btn .fallback {
+  display: none; /* only visible if image fails to load */
+  padding: .6rem 1rem; border-radius: 12px;
+  background: var(--ink); color: #fff; font-weight: 700;
+}
+.img-btn img:not([src]), .img-btn img[src=""] { display: none; }
+.img-btn img:not([src]), .img-btn img[src=""] + .fallback { display: inline-block; }
+
+/* Utility pill (not used heavily now) */
 .pill {
-  padding: .35rem .7rem;
-  border-radius: 999px;
+  padding: .35rem .7rem; border-radius: 999px;
   background: color-mix(in srgb, var(--paper) 92%, transparent);
-  color: var(--ink);
-  font-weight: 700;
-  box-shadow: 0 6px 18px rgba(0,0,0,.2);
+  color: var(--ink); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.2);
 }
 
 /* Prevent scroll bounce on iOS PWAs */
-@supports (height: 100dvh) {
-  html, body { height: 100dvh; }
-}
+@supports (height: 100dvh) { html, body { height: 100dvh; } }
