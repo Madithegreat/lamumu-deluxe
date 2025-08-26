@@ -70,16 +70,15 @@
   const $activePU = hud.querySelector("#activePU");
   const $logo = hud.querySelector("#logo");
 
-  // ---------- Global delegated clicks (robust) ----------
+  // ---------- Global delegated clicks ----------
   document.addEventListener("click", (e) => {
     const control = e.target.closest("[data-action]");
     if (!control) return;
-
     const act = control.getAttribute("data-action");
     if (act === "start" || act === "retry") {
       e.preventDefault();
       closeHelp();
-      resetGame();        // <-- always start the game
+      resetGame();
     } else if (act === "close-help") {
       e.preventDefault();
       closeHelp();
