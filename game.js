@@ -1,14 +1,16 @@
 /* =========================================================================
-   Cow Zuma — Single 10-min Survival, Reverse/Slow/Bomb
-   Assets expected in ./assets/img/
-   Drop this as game.js and include in a bare HTML page:
-     <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cow Zuma</title></head>
-     <body><script src="./game.js"></script></body></html>
+   Lamumu Deluxe — Single 10-min Survival (Reverse/Slow/Bomb)
+   Assets in ./assets/img/
+   Play/Retry image filenames are configurable below.
    ========================================================================= */
 
 (() => {
+  // ---- Filenames for image buttons (change if yours differ) ----
+  const BTN_PLAY_FILE  = "btn_play.png";
+  const BTN_RETRY_FILE = "btn_retry.png";
+
   // ----------------------- Config -----------------------
-  const ASSET_BASE = "./assets/img/"; // per your confirmation
+  const ASSET_BASE = "./assets/img/"; // path to your images
 
   const GAME = {
     durationSec: 10 * 60,         // 10 minutes
@@ -30,8 +32,7 @@
       { name: "green",  img: "ball_green.png" },
       { name: "purple", img: "ball_purple.png" },
     ],
-    // S-curve anchors as percentages of canvas size
-    anchorsPct: [
+    anchorsPct: [ // S-curve path anchors as percentages of canvas size
       [0.08, 0.30],
       [0.30, 0.18],
       [0.55, 0.32],
@@ -46,7 +47,6 @@
 
   // --------------------- Basic DOM ----------------------
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-  const $ = (sel) => document.querySelector(sel);
 
   const root = document.createElement("div");
   root.style.cssText = "position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr;background:#1b5e20;color:#fff;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;user-select:none;overscroll-behavior:none;";
@@ -69,26 +69,22 @@
   root.appendChild(canvas);
   const ctx = canvas.getContext("2d");
 
+  // Reusable overlay (used for splash + end screens)
   const overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:#0008;backdrop-filter:blur(2px);";
-  overlay.innerHTML = `
-    <div style="max-width:720px;background:#ffffffe6;color:#111;border-radius:18px;padding:16px 18px;box-shadow:0 24px 60px #0006;text-align:center">
-      <h1 id="ovTitle" style="margin:.1rem 0 0 0;font-size:1.4rem">Cow Zuma</h1>
-      <p id="ovSub" style="margin:.5rem 0 1rem 0;line-height:1.6">Survive 10 minutes. Click/Touch to shoot. <b>Q</b> to swap on desktop. Pop <i>Reverse</i>, <i>Slow</i>, or <i>Bomb</i> balls to trigger powerups.</p>
-      <button id="btnPlay" style="padding:.7rem 1.1rem;border:0;border-radius:14px;background:#111;color:#fff;font-weight:700;cursor:pointer;box-shadow:0 10px 24px #0004">Play</button>
-    </div>
-  `;
   overlay.hidden = true;
   document.body.appendChild(overlay);
 
-  // HUD handles
+  // Handles to existing DOM (settings modal + play image)
+  const settingsBtn = document.getElementById("settingsBtn");
+  const helpModal  = document.getElementById("help");
+  const helpPlay   = document.getElementById("playImgBtn");
+
+  // HUD refs
   const $timer = hud.querySelector("#timer");
   const $score = hud.querySelector("#score");
   const $activePU = hud.querySelector("#activePU");
   const $logo = hud.querySelector("#logo");
-  const $ovTitle = overlay.querySelector("#ovTitle");
-  const $ovSub = overlay.querySelector("#ovSub");
-  const $btnPlay = overlay.querySelector("#btnPlay");
 
   // --------------------- Assets -------------------------
   const IMGS = {
@@ -116,6 +112,8 @@
     ring_reverse: "ring_reverse.png",
     ball_shadow: "ball_shadow.png",
     cursor_reticle: "cursor_reticle.png",
+    btn_play: BTN_PLAY_FILE,
+    btn_retry: BTN_RETRY_FILE,
   };
   const imgs = {};
   function loadImages(map) {
@@ -205,7 +203,7 @@
   const R = () => GAME.ballRadius * DPR;
   const SP = () => GAME.ballSpacing * DPR;
 
-  let state = "menu"; // "menu" | "playing" | "won" | "lost"
+  let state = "splash"; // "splash" | "playing" | "won" | "lost"
   let score = 0;
   let timeLeft = GAME.durationSec;
   let startTs = 0;
@@ -222,52 +220,11 @@
     flashT: 0,
   };
 
-  // chain: ascending s, head = last element
   const chain = [];
-  const fired = []; // projectiles
+  const fired = [];
   const effects = { reverseUntil: 0, slowUntil: 0 };
-  const sparkles = []; // {x,y,t,life}
-  const bursts = [];   // bomb visuals {x,y,t,life}
-
-  function resetGame() {
-    score = 0;
-    timeLeft = GAME.durationSec;
-    state = "playing";
-    effects.reverseUntil = 0; effects.slowUntil = 0;
-    chain.length = 0; fired.length = 0; sparkles.length = 0; bursts.length = 0;
-
-    shooter.current = pickColor();
-    shooter.next = pickColor();
-    shooter.cooldown = 0; shooter.flashT = 0;
-
-    buildPath();
-
-    // initial off-screen tail
-    let s = -SP() * 10;
-    for (let i = 0; i < 20; i++) {
-      chain.push(makeBall(s, randomColorName(), maybePowerup()));
-      s += SP();
-    }
-
-    // center the pointer to start
-    pointer.x = canvas.width / 2;
-    pointer.y = canvas.height / 2 - 200 * DPR;
-
-    startTs = performance.now();
-  }
-
-  function pickColor() {
-    return GAME.colors[(Math.random() * GAME.colors.length) | 0].name;
-  }
-  function randomColorName() { return pickColor(); }
-  function makeBall(s, colorName, powerup) { return { s, color: colorName, pu: powerup || null }; }
-  function maybePowerup() {
-    if (Math.random() < GAME.powerupSpawnChance) {
-      const arr = ["reverse", "slow", "bomb"];
-      return arr[(Math.random() * arr.length) | 0];
-    }
-    return null;
-  }
+  const sparkles = [];
+  const bursts = [];
 
   // ------------------- Input ----------------------------
   function setPointerFromEvent(clientX, clientY) {
@@ -320,6 +277,113 @@
     shooter.flashT = 0.06;
   }
 
+  // ------------------- Game Flow ------------------------
+  function resetGame() {
+    score = 0;
+    timeLeft = GAME.durationSec;
+    state = "playing";
+    effects.reverseUntil = 0; effects.slowUntil = 0;
+    chain.length = 0; fired.length = 0; sparkles.length = 0; bursts.length = 0;
+
+    shooter.current = pickColor();
+    shooter.next = pickColor();
+    shooter.cooldown = 0; shooter.flashT = 0;
+
+    buildPath();
+
+    let s = -SP() * 10;
+    for (let i = 0; i < 20; i++) {
+      chain.push(makeBall(s, randomColorName(), maybePowerup()));
+      s += SP();
+    }
+
+    pointer.x = canvas.width / 2;
+    pointer.y = canvas.height / 2 - 200 * DPR;
+
+    startTs = performance.now();
+    overlay.hidden = true;
+
+    // stop pulsing the gear once we start
+    settingsBtn && settingsBtn.classList.remove("pulse");
+  }
+
+  function pickColor() { return GAME.colors[(Math.random() * GAME.colors.length) | 0].name; }
+  function randomColorName() { return pickColor(); }
+  function makeBall(s, colorName, powerup) { return { s, color: colorName, pu: powerup || null }; }
+  function maybePowerup() {
+    if (Math.random() < GAME.powerupSpawnChance) {
+      const arr = ["reverse", "slow", "bomb"];
+      return arr[(Math.random() * arr.length) | 0];
+    }
+    return null;
+  }
+
+  // Splash screen with logo; directs user to settings
+  function showSplash() {
+    state = "splash";
+    overlay.hidden = false;
+    overlay.innerHTML = `
+      <div style="max-width:760px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:center">
+        <div style="margin:.5rem 0 1rem 0">
+          ${imgs.logo ? `<img src="${imgs.logo.src}" alt="Lamumu Deluxe" style="max-width:420px;width:80%;height:auto;filter:drop-shadow(0 12px 28px rgba(0,0,0,.3))" />` : `<h1 style="margin:0">Lamumu Deluxe</h1>`}
+        </div>
+        <p style="margin:.25rem 0 1rem 0;line-height:1.55">
+          Tap the <b>⚙️ Settings</b> button (top-right) to read a quick guide, then press <b>Play</b>.
+        </p>
+        <p style="opacity:.7;margin:0">Good luck! Survive for <b>10 minutes</b> 🐄🌾</p>
+      </div>
+    `;
+    // keep gear pulsing to direct attention
+    settingsBtn && settingsBtn.classList.add("pulse");
+  }
+
+  // End overlays (win/lose) with image buttons
+  function showEndOverlay({ title, sub, type }) {
+    overlay.hidden = false;
+    const imgBtnKey = type === "retry" ? "btn_retry" : "btn_play";
+    const img = imgs[imgBtnKey];
+    overlay.innerHTML = `
+      <div style="max-width:760px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:center">
+        <h2 style="margin:.2rem 0 .6rem 0;font-size:1.4rem">${title}</h2>
+        <p style="margin:.25rem 0 1rem 0;line-height:1.55">${sub}</p>
+        <a id="endImgBtn" href="#" class="img-btn">
+          ${img ? `<img alt="${type}" src="${img.src}">` : ""}
+          <span class="fallback">${type === "retry" ? "Retry" : "Play Again"}</span>
+        </a>
+      </div>
+    `;
+    const btn = document.getElementById("endImgBtn");
+    btn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (type === "retry" || type === "play") resetGame(); else resetGame();
+    });
+  }
+
+  function win() {
+    state = "won";
+    showEndOverlay({
+      title: "You Win! 🐄🌾",
+      sub: `Survived 10 minutes.<br/>Final score: <b>${score}</b>`,
+      type: "play" // play again
+    });
+  }
+  function lose() {
+    state = "lost";
+    showEndOverlay({
+      title: "They Reached the Barn! 💀",
+      sub: `You lasted <b>${fmtTime(GAME.durationSec - timeLeft)}</b>.<br/>Final score: <b>${score}</b>`,
+      type: "retry"
+    });
+  }
+
+  // Settings modal Play image button starts game
+  helpPlay?.addEventListener("click", (e) => {
+    e.preventDefault();
+    // close modal
+    if (location.hash === "#help") history.replaceState(null, "", " ");
+    resetGame();
+  });
+
   // ------------------- Update Loop ----------------------
   let lastTs = performance.now();
   function gameLoop(ts) {
@@ -347,7 +411,7 @@
     const dir = reverseActive ? -1 : 1;
     const speed = (GAME.baseSpeed * (slowActive ? GAME.slowFactor : 1)) * DPR;
 
-    // spawn new balls at tail until timer ends
+    // keep tail fed
     if (timeLeft > 0) {
       const minS = chain.length ? chain[0].s : 0;
       while (minS > spawnMinS) {
@@ -355,7 +419,7 @@
       }
     }
 
-    // move chain while keeping spacing
+    // move chain w/ spacing
     const delta = dir * speed * dt;
     if (dir > 0) {
       for (let i = chain.length - 1; i >= 0; i--) {
@@ -387,16 +451,15 @@
       }
     }
 
-    // win/lose conditions
+    // win/lose
     const head = chain[chain.length - 1];
     if (head && head.s >= pathLen - SP() * 1.2) lose();
     else if (timeLeft <= 0) win();
 
-    // visual lifetimes
+    // visuals lifetimes
     for (let k = sparkles.length - 1; k >= 0; k--) { sparkles[k].t += dt; if (sparkles[k].t >= sparkles[k].life) sparkles.splice(k, 1); }
     for (let k = bursts.length - 1; k >= 0; k--) { bursts[k].t += dt; if (bursts[k].t >= bursts[k].life) bursts.splice(k, 1); }
 
-    // HUD active powerups
     renderActivePU(ts);
   }
 
@@ -463,25 +526,10 @@
     const keep = [];
     for (let i = 0; i < chain.length; i++) {
       if (Math.abs(chain[i].s - centerS) > radius) keep.push(chain[i]);
-      else score += 8; // small score for bomb clears
+      else score += 8;
     }
     chain.length = 0; chain.push(...keep);
     $score.textContent = String(score);
-  }
-
-  function win() {
-    state = "won";
-    overlay.hidden = false;
-    $ovTitle.textContent = "You Win! 🐄🌾";
-    $ovSub.innerHTML = `Survived 10 minutes.<br/>Final score: <b>${score}</b>`;
-    $btnPlay.textContent = "Play Again";
-  }
-  function lose() {
-    state = "lost";
-    overlay.hidden = false;
-    $ovTitle.textContent = "They Reached the Barn! 💀";
-    $ovSub.innerHTML = `You lasted <b>${fmtTime(GAME.durationSec - timeLeft)}</b>.<br/>Final score: <b>${score}</b>`;
-    $btnPlay.textContent = "Try Again";
   }
 
   function fmtTime(sec) {
@@ -498,13 +546,9 @@
     // subtle path ribbon
     ctx.save();
     ctx.strokeStyle = "rgba(255,255,255,0.04)";
-    ctx.lineWidth = 14 * DPR;
-    ctx.lineCap = "round";
+    ctx.lineWidth = 14 * DPR; ctx.lineCap = "round";
     ctx.beginPath();
-    for (let i = 1; i < pathPts.length; i++) {
-      const a = pathPts[i - 1], b = pathPts[i];
-      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-    }
+    for (let i = 1; i < pathPts.length; i++) { const a = pathPts[i - 1], b = pathPts[i]; ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
     ctx.stroke();
     ctx.restore();
 
@@ -515,7 +559,7 @@
       ctx.drawImage(imgs.skull_end, end.x - sz / 2, end.y - sz / 2, sz, sz);
     }
 
-    // active effect rings near head
+    // effect rings near head
     const nowS = performance.now() / 1000;
     const head = chain[chain.length - 1];
     if (head) {
@@ -535,22 +579,15 @@
     // chain
     for (let i = 0; i < chain.length; i++) {
       const b = chain[i], p = posAtS(b.s);
-
-      // shadow
       if (imgs.ball_shadow) {
         const sw = 36 * DPR, sh = 16 * DPR;
         ctx.globalAlpha = 0.5;
         ctx.drawImage(imgs.ball_shadow, p.x - sw / 2, p.y + R() * 0.65, sw, sh);
         ctx.globalAlpha = 1;
       }
-
-      // colored ball
       const bi = imgs["ball_" + b.color] || imgs.ball_base;
       const size = R() * 2;
       if (bi) ctx.drawImage(bi, p.x - R(), p.y - R(), size, size);
-      else { ctx.fillStyle = "#ccc"; ctx.beginPath(); ctx.arc(p.x, p.y, R(), 0, Math.PI * 2); ctx.fill(); }
-
-      // powerup overlay icon
       if (b.pu) {
         const ik = b.pu === "bomb" ? "icon_bomb" : b.pu === "slow" ? "icon_slow" : "icon_reverse";
         const s = R() * 1.2;
@@ -558,11 +595,9 @@
       }
     }
 
-    // bomb bursts
+    // bursts
     for (const ex of bursts) {
-      const t = ex.t / ex.life; // 0..1
-      const scale = lerp(0.6, 1.8, t);
-      const alpha = 1 - t;
+      const t = ex.t / ex.life; const scale = lerp(0.6, 1.8, t); const alpha = 1 - t;
       const img = imgs.explosion_burst;
       if (img) {
         const size = 120 * DPR * scale;
@@ -572,7 +607,7 @@
       }
     }
 
-    // fired projectiles
+    // projectiles
     for (const f of fired) {
       const bi = imgs["ball_" + f.color] || imgs.ball_base;
       const size = R() * 1.8;
@@ -582,9 +617,7 @@
 
     // sparkles
     for (const s of sparkles) {
-      const t = s.t / s.life;
-      const a = 1 - t;
-      const size = lerp(12, 28, t) * DPR;
+      const t = s.t / s.life; const a = 1 - t; const size = lerp(12, 28, t) * DPR;
       if (imgs.sparkle) {
         ctx.globalAlpha = a;
         ctx.drawImage(imgs.sparkle, s.x - size / 2, s.y - size / 2, size, size);
@@ -604,7 +637,6 @@
       ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
       return;
     }
-    // cover
     const iw = img.naturalWidth, ih = img.naturalHeight;
     const ar = iw / ih, cw = canvas.width, ch = canvas.height;
     const car = cw / ch;
@@ -675,34 +707,25 @@
   }
 
   // ---------------- Boot & UI ---------------------------
-  $btnPlay.addEventListener("click", () => { overlay.hidden = true; resetGame(); });
-
-  function showMenu() {
-    state = "menu";
-    overlay.hidden = false;
-    $ovTitle.textContent = "Cow Zuma";
-    $ovSub.innerHTML = "Survive 10 minutes. Click/Touch to shoot. <b>Q</b> to swap on desktop.";
-    $btnPlay.textContent = "Play";
-  }
-  function setupLogo() { if (imgs.logo) { $logo.src = imgs.logo.src; $logo.style.display = "block"; } }
-
   function init() {
     resizeCanvas();
     buildPath();
     // center pointer initially
     pointer.x = canvas.width / 2;
     pointer.y = canvas.height / 2 - 200 * DPR;
-    showMenu();
+
+    // show splash with logo
+    showSplash();
     requestAnimationFrame(gameLoop);
   }
 
-  // ----------------- Start ------------------------------
+  function setupLogo() { if (imgs.logo) { $logo.src = imgs.logo.src; $logo.style.display = "block"; } }
+
   loadImages(IMGS).then(() => { setupLogo(); init(); })
   .catch(err => {
     overlay.hidden = false;
-    $ovTitle.textContent = "Asset Load Error";
-    $ovSub.textContent = err.message;
-    $btnPlay.style.display = "none";
+    overlay.innerHTML = `<div style="max-width:720px;background:#ffffffe6;color:#111;border-radius:18px;padding:16px 18px;box-shadow:0 24px 60px #0006;text-align:center">
+      <h2>Asset Load Error</h2><p>${err.message}</p></div>`;
   });
 
 })();
