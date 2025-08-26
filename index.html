@@ -16,7 +16,7 @@
       </div>
     </noscript>
 
-    <!-- Settings (How to Play) — pure CSS modal via :target, JS ensures close -->
+    <!-- Settings (How to Play) -->
     <a id="settingsBtn" class="pulse" href="#help" aria-haspopup="dialog" aria-controls="help" aria-label="Open settings / how to play">⚙️</a>
 
     <div id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" class="help-modal">
@@ -29,18 +29,11 @@
           <li>Match <b>3+</b> of the same color to clear.</li>
           <li>Powerups (pop to trigger): <b>Reverse</b> (5s), <b>Slow</b> (7s), <b>Bomb</b> (area clear).</li>
         </ul>
-
-        <!-- Image Play button (wired by game.js). Fallback text link if image missing. -->
-        <a id="playImgBtn" href="#" class="img-btn">
-          <img alt="Play" src="./assets/img/btn_play.png" />
-          <span class="fallback">Play</span>
-        </a>
-
         <a id="helpClose" class="close" href="#" aria-label="Close settings">Close</a>
       </div>
     </div>
 
-    <!-- The game UI (HUD/canvas/overlays) is created by game.js -->
+    <!-- game.js builds HUD, canvas, overlays -->
     <script src="./game.js" defer></script>
   </body>
 </html>
