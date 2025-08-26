@@ -9,13 +9,13 @@
     canvasMarginTop: 56,
     ballRadius: 18,
     ballSpacing: 36.5,
-    baseSpeed: 55,
-    projectileSpeed: 600,
+    baseSpeed: 60,           // slower chain (was 80)
+    projectileSpeed: 540,    // slightly slower shots (was 600)
     insertDistanceThreshold: 17,
-    powerupSpawnChance: 0.09,
-    reverseDuration: 7.0,
-    slowDuration: 9.0,
-    slowFactor: 0.45,
+    powerupSpawnChance: 0.07,
+    reverseDuration: 5.0,
+    slowDuration: 7.0,
+    slowFactor: 0.55,
     bombRadiusInBalls: 3,
     colors: [
       { name: "red" }, { name: "blue" }, { name: "yellow" },
@@ -27,7 +27,7 @@
     ],
   };
 
-  const DPR = Math.max(1, Math.min(2, devicePixelRatio || 1));
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const lerp  = (a,b,t)=>a+(b-a)*t;
 
@@ -53,36 +53,19 @@
   root.appendChild(canvas);
   const ctx = canvas.getContext("2d");
 
-  // ---------- Overlay (Splash/End) with strict show/hide ----------
+  // ---------- Overlay (Splash/End) ----------
   const overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;inset:0;display:none;place-items:center;padding:20px;background:#0008;backdrop-filter:blur(2px);z-index:1200;";
   document.body.appendChild(overlay);
 
-  const showOverlay = (html) => {
-    overlay.innerHTML = html;
-    overlay.style.display = "grid";
-  };
-  const hideOverlay = () => {
-    overlay.style.display = "none";
-    overlay.innerHTML = "";
-  };
+  const showOverlay = (html) => { overlay.innerHTML = html; overlay.style.display = "grid"; };
+  const hideOverlay = () => { overlay.style.display = "none"; overlay.innerHTML = ""; };
 
-  // ---------- Help modal (JS-driven only) ----------
-  const settingsBtn = document.getElementById("settingsBtn");
-  const help = document.getElementById("help");
-  const openHelp = () => { hideOverlay(); help.classList.add("open"); settingsBtn?.classList.remove("pulse"); };
-  const closeHelp = () => help.classList.remove("open");
-
-  settingsBtn?.addEventListener("click",(e)=>{ e.preventDefault(); openHelp(); });
-  help.addEventListener("click",(e)=>{ if (e.target === help) closeHelp(); });
-  addEventListener("keydown",(e)=>{ if (e.key === "Escape") closeHelp(); });
-
-  // ---------- Delegated buttons ----------
+  // Delegated buttons for Start/Retry
   document.addEventListener("click",(e)=>{
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
     const act = btn.getAttribute("data-action");
-    if (act === "close-help") { e.preventDefault(); closeHelp(); }
     if (act === "start" || act === "retry") { e.preventDefault(); startGame(); }
   });
 
@@ -187,21 +170,22 @@
 
   // ---------- Flow ----------
   function startGame(){
-    // force-close everything visible first
-    closeHelp();
-    hideOverlay();
+    hideOverlay();  // ensure splash is gone
 
-    score=0; timeLeft=GAME.durationSec; state="playing"; effects.reverseUntil=effects.slowUntil=0;
+    score=0; timeLeft=GAME.durationSec; state="playing";
+    effects.reverseUntil=0; effects.slowUntil=0;
+
     chain.length=0; fired.length=0; sparkles.length=0; bursts.length=0;
 
-    shooter.current=pickColor(); shooter.next=pickColor(); shooter.cooldown=0; shooter.flashT=0;
+    shooter.current=pickColor(); shooter.next=pickColor();
+    shooter.cooldown=0; shooter.flashT=0;
 
     buildPath();
-    let s=-SP()*10; for(let i=0;i<20;i++){ chain.push(makeBall(s,pickColor(),maybePowerup())); s+=SP(); }
+    let s=-SP()*10;
+    for(let i=0;i<20;i++){ chain.push(makeBall(s,pickColor(),maybePowerup())); s+=SP(); }
 
     pointer.x=canvas.width/2; pointer.y=canvas.height/2-200*DPR;
     startTs=performance.now();
-    settingsBtn?.classList.remove("pulse");
   }
 
   const pickColor=()=>GAME.colors[(Math.random()*GAME.colors.length)|0].name;
@@ -211,19 +195,25 @@
   function showSplash(){
     state="splash";
     showOverlay(`
-      <div style="max-width:760px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:center">
-        <div style="margin:.5rem 0 1rem 0">
-          ${imgs.logo ? `<img src="${imgs.logo.src}" alt="Lamumu Deluxe" style="max-width:420px;width:80%;height:auto;filter:drop-shadow(0 12px 28px rgba(0,0,0,.3))" />` : `<h1 style="margin:0">Lamumu Deluxe</h1>`}
+      <div style="max-width:820px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:left">
+        <div style="text-align:center;margin:.5rem 0 1rem 0">
+          ${imgs.logo ? `<img src="${imgs.logo.src}" alt="Lamumu Deluxe" style="max-width:420px;width:80%;height:auto;filter:drop-shadow(0 12px 28px rgba(0,0,0,.3))" />` : `<h1 style="margin:0;text-align:center">Lamumu Deluxe</h1>`}
         </div>
-        <p style="margin:.25rem 0 1rem 0;line-height:1.55">Tap <b>⚙️ Settings</b> for a quick guide, or start now.</p>
-        <button class="primary-btn" data-action="start">Start Game</button>
+        <ul style="margin:.25rem 0 1rem 1.2rem; line-height:1.55; max-width:520px;">
+          <li>Survive for <b>10 minutes</b> — if the chain reaches the skull, you lose.</li>
+          <li><b>Aim</b> with mouse/touch. <b>Click / tap</b> to shoot.</li>
+          <li><b>Swap</b> the next ball with <b>Q</b> (desktop) or <b>double-tap</b> (mobile).</li>
+          <li>Match <b>3+</b> of the same color to clear.</li>
+          <li>Powerups (pop to trigger): <b>Reverse</b> (5s), <b>Slow</b> (7s), <b>Bomb</b> (area clear).</li>
+        </ul>
+        <div style="text-align:center;margin-top:.5rem">
+          <button class="primary-btn" data-action="start">Start Game</button>
+        </div>
       </div>
     `);
-    settingsBtn?.classList.add("pulse");
   }
 
   function showEnd({title,sub}){
-    closeHelp(); // guarantee Help isn't behind
     showOverlay(`
       <div style="max-width:760px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:center">
         <h2 style="margin:.2rem 0 .6rem 0;font-size:1.4rem">${title}</h2>
@@ -235,6 +225,22 @@
 
   const win = ()=>{ state="won"; showEnd({title:"You Win! 🐄🌾", sub:`Survived 10 minutes.<br/>Final score: <b>${score}</b>`}); };
   const lose = ()=>{ state="lost"; showEnd({title:"They Reached the Barn! 💀", sub:`You lasted <b>${fmtTime(GAME.durationSec - timeLeft)}</b>.<br/>Final score: <b>${score}</b>`}); };
+
+  // ---------- Segment helper (for correct gap behavior) ----------
+  function getSegments() {
+    const segments = [];
+    if (!chain.length) return segments;
+    const GAP = SP() * 1.05; // a gap if > ~1 ball
+    let start = 0;
+    for (let i = 1; i < chain.length; i++) {
+      if (chain[i].s - chain[i - 1].s > GAP) {
+        segments.push([start, i - 1]);
+        start = i;
+      }
+    }
+    segments.push([start, chain.length - 1]);
+    return segments;
+  }
 
   // ---------- Update / Draw ----------
   let lastTs=performance.now();
@@ -264,102 +270,93 @@
       }
     }
 
+    // Segment-aware movement
     const delta=dir*speed*dt;
-     
     if (dir > 0) {
-      // FORWARD: only the tail segment moves; front segments wait until pushed
+      // Forward: only tail-most segment moves; fronts wait until pushed
       const segs = getSegments();
       if (segs.length) {
-        const [start0, end0] = segs[0]; // tail-most segment (lowest s)
-
-        // move the tail segment forward, but stop at the next segment’s first ball
+        const [start0, end0] = segs[0]; // tail-most segment
         for (let i = end0; i >= start0; i--) {
           let lead;
           if (i === end0) {
             if (segs.length > 1) {
               const nextStart = segs[1][0];
-              lead = chain[nextStart].s - SP();        // stop when contacting next segment
+              lead = chain[nextStart].s - SP();  // stop when contacting next segment
             } else {
-              lead = Infinity;                         // no segment ahead
+              lead = Infinity;
             }
           } else {
-            lead = chain[i + 1].s - SP();              // keep spacing to the ball ahead
+            lead = chain[i + 1].s - SP();
           }
           chain[i].s = Math.min(chain[i].s + delta, lead);
         }
-
-        // propagate PUSH into front segments once contact occurs
+        // keep front segments still until pushed into spacing by the previous one
         for (let i = end0 + 1; i < chain.length; i++) {
           chain[i].s = Math.max(chain[i].s, chain[i - 1].s + SP());
         }
       }
     } else {
-      // REVERSE: whole chain moves backward together
+      // Reverse: entire chain moves backward together
       for (let i = 0; i < chain.length; i++) {
         const back = (i === 0) ? -Infinity : chain[i - 1].s + SP();
         chain[i].s = Math.max(chain[i].s + delta, back);
       }
     }
 
-    // Projectiles & insertion
-    for(let i=fired.length-1;i>=0;i--){
+    // Projectiles — insert only on real chain contact (not path-only)
+    for (let i = fired.length - 1; i >= 0; i--) {
       const b = fired[i];
-      // advance
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-   
+      b.x += b.vx * dt; b.y += b.vy * dt;
+
       // cull off-screen
       if (b.x < -100 || b.y < -100 || b.x > canvas.width + 100 || b.y > canvas.height + 100) {
         fired.splice(i, 1);
         continue;
       }
-   
       if (!chain.length) continue;
-   
-      // project shot to path
+
+      // project to path and find nearest ball in s-space
       const sHit = nearestSForPoint(b.x, b.y);
       const pOnPath = posAtS(sHit);
-   
-      // find nearest chain ball in "s" space
+
       let nearestIdx = 0;
       let nearestDiff = Math.abs(chain[0].s - sHit);
       for (let j = 1; j < chain.length; j++) {
         const d = Math.abs(chain[j].s - sHit);
         if (d < nearestDiff) { nearestDiff = d; nearestIdx = j; }
       }
-   
-      // distances
+
       const bp = posAtS(chain[nearestIdx].s);
       const distToBall = Math.hypot(bp.x - b.x, bp.y - b.y);
       const distToPath = Math.hypot(pOnPath.x - b.x, pOnPath.y - b.y);
-   
-      // thresholds (tweakable)
-      const CONTACT_DIST = R() * 1.9;      // must actually touch a ball
-      const S_MAX_GAP    = SP() * 0.95;    // shot must be near that ball along the path
-      const PATH_SNAP    = R() * 1.3;      // also be close to the path centerline
-   
-      // insert only if we're contacting the chain (not just the empty path)
+
+      // thresholds
+      const CONTACT_DIST = R() * 1.9;  // touch a ball
+      const S_MAX_GAP    = SP() * 0.95; // near that ball along s
+      const PATH_SNAP    = R() * 1.3;  // near centerline too
+
       if (distToBall <= CONTACT_DIST && nearestDiff <= S_MAX_GAP && distToPath <= PATH_SNAP) {
-        // choose before/after nearest depending on s
+        // choose side based on s
         let insertIdx = (sHit > chain[nearestIdx].s) ? (nearestIdx + 1) : nearestIdx;
-   
-        // clamp s a little between neighbors to avoid huge overlaps; settle will finish it
+
+        // clamp s between neighbors slightly; settle will do the rest
         let sInsert = sHit;
         const leftS  = (insertIdx > 0) ? chain[insertIdx - 1].s : -Infinity;
         const rightS = (insertIdx < chain.length) ? chain[insertIdx].s :  Infinity;
         const EPS = SP() * 0.08;
         if (isFinite(leftS))  sInsert = Math.max(sInsert, leftS  + EPS);
         if (isFinite(rightS)) sInsert = Math.min(sInsert, rightS - EPS);
-   
+
         chain.splice(insertIdx, 0, makeBall(sInsert, b.color, null));
         fired.splice(i, 1);
-   
+
         settleAround(insertIdx);
         handleMatchesAndPowerups(insertIdx);
-   
+
         sparkles.push({ x: pOnPath.x, y: pOnPath.y, t: 0, life: 0.25 });
       }
-    }      
+    }
 
     // Win / Lose
     const head=chain[chain.length-1];
@@ -382,17 +379,22 @@
     const c=chain[centerIdx]?.color; if(!c) return;
     let L=centerIdx,R=centerIdx; while(L-1>=0&&chain[L-1].color===c)L--; while(R+1<chain.length&&chain[R+1].color===c)R++;
     const count=R-L+1, removed=[];
-    if(count>=3){ for(let i=L;i<=R;i++) removed.push(chain[i]); chain.splice(L,count); score+=count*10; $score.textContent=String(score);
-      for(let i=L;i<chain.length;i++) chain[i].s-=SP()*0.28; }
+    if(count>=3){
+      for(let i=L;i<=R;i++) removed.push(chain[i]);
+      chain.splice(L,count);
+      score+=count*10; $score.textContent=String(score);
+      for(let i=L;i<chain.length;i++) chain[i].s-=SP()*0.28;
+    }
     if(removed.length){
       const hasReverse=removed.some(b=>b.pu==="reverse");
-      const hasSlow=removed.some(b=>b.pu==="slow");
-      const hasBomb=removed.some(b=>b.pu==="bomb");
+      const hasSlow   =removed.some(b=>b.pu==="slow");
+      const hasBomb   =removed.some(b=>b.pu==="bomb");
       const now=performance.now()/1000;
       if(hasReverse) effects.reverseUntil=Math.max(effects.reverseUntil,now+GAME.reverseDuration);
       if(hasSlow)    effects.slowUntil   =Math.max(effects.slowUntil,   now+GAME.slowDuration);
       if(hasBomb){ const midS=removed[Math.floor(removed.length/2)].s; doBomb(midS); }
-      const checkIdx=Math.max(0,L-1); if(checkIdx<chain.length) chainReactionCheck(checkIdx);
+      const checkIdx=Math.max(0,L-1);
+      if(checkIdx<chain.length) chainReactionCheck(checkIdx);
     }
   }
 
@@ -402,24 +404,13 @@
     const colors=[chain[tryIdx].color, chain[tryIdx+1]?.color].filter(Boolean);
     colors.forEach(col=>{
       let L=tryIdx,R=tryIdx; while(L-1>=0&&chain[L-1].color===col)L--; while(R+1<chain.length&&chain[R+1].color===col)R++;
-      const cnt=R-L+1; if(cnt>=3){ chain.splice(L,cnt); score+=cnt*10; $score.textContent=String(score); for(let i=L;i<chain.length;i++) chain[i].s-=SP()*0.25; }
-    });
-  }
-
-  // Split the chain into contiguous segments (gaps > ~1 ball apart)
-  function getSegments() {
-    const segments = [];
-    if (!chain.length) return segments;
-    const GAP = SP() * 1.05; // threshold to consider "broken"
-    let start = 0;
-    for (let i = 1; i < chain.length; i++) {
-      if (chain[i].s - chain[i - 1].s > GAP) {
-        segments.push([start, i - 1]);
-        start = i;
+      const cnt=R-L+1;
+      if(cnt>=3){
+        chain.splice(L,cnt);
+        score+=cnt*10; $score.textContent=String(score);
+        for(let i=L;i<chain.length;i++) chain[i].s-=SP()*0.25;
       }
-    }
-    segments.push([start, chain.length - 1]);
-    return segments;
+    });
   }
 
   function doBomb(centerS){
@@ -459,25 +450,35 @@
     }
 
     // bursts
-    for(const ex of bursts){ const t=ex.t/ex.life, scale=lerp(.6,1.8,t), alpha=1-t, img=imgs.explosion_burst;
-      if(img){ const size=120*DPR*scale; ctx.globalAlpha=alpha; ctx.drawImage(img,ex.x-size/2,ex.y-size/2,size,size); ctx.globalAlpha=1; } }
+    for(const ex of bursts){
+      const t=ex.t/ex.life, scale=lerp(.6,1.8,t), alpha=1-t, img=imgs.explosion_burst;
+      if(img){ const size=120*DPR*scale; ctx.globalAlpha=alpha; ctx.drawImage(img,ex.x-size/2,ex.y-size/2,size,size); ctx.globalAlpha=1; }
+    }
 
     // projectiles
-    for(const f of fired){ const bi=imgs["ball_"+f.color]||imgs.ball_base, size=R()*1.8;
+    for(const f of fired){
+      const bi=imgs["ball_"+f.color]||imgs.ball_base, size=R()*1.8;
       if(bi) ctx.drawImage(bi,f.x-size/2,f.y-size/2,size,size);
       if(imgs.ball_shadow) ctx.drawImage(imgs.ball_shadow,f.x-12*DPR,f.y+10*DPR,24*DPR,10*DPR);
     }
 
     // sparkles
-    for(const s of sparkles){ const t=s.t/s.life, a=1-t, size=lerp(12,28,t)*DPR;
-      if(imgs.sparkle){ ctx.globalAlpha=a; ctx.drawImage(imgs.sparkle,s.x-size/2,s.y-size/2,size,size); ctx.globalAlpha=1; } }
+    for(const s of sparkles){
+      const t=s.t/s.life, a=1-t, size=lerp(12,28,t)*DPR;
+      if(imgs.sparkle){ ctx.globalAlpha=a; ctx.drawImage(imgs.sparkle,s.x-size/2,s.y-size/2,size,size); ctx.globalAlpha=1; }
+    }
 
     drawShooter();
   }
 
   function drawBG(){
     const img=imgs.bg_grass_1920;
-    if(!img){ const g=ctx.createLinearGradient(0,0,0,canvas.height); g.addColorStop(0,"#66bb6a"); g.addColorStop(1,"#2e7d32"); ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
+    if(!img){
+      const g=ctx.createLinearGradient(0,0,0,canvas.height);
+      g.addColorStop(0,"#66bb6a"); g.addColorStop(1,"#2e7d32");
+      ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+      return;
+    }
     const iw=img.naturalWidth, ih=img.naturalHeight, ar=iw/ih, cw=canvas.width, ch=canvas.height, car=cw/ch;
     let w,h; if(car>ar){ w=cw; h=cw/ar; } else { h=ch; w=ch*ar; }
     ctx.drawImage(img,(cw-w)/2,(ch-h)/2,w,h);
@@ -487,12 +488,27 @@
     const sx=shooter.x(), sy=shooter.y();
     if(imgs.cow_base){ const w=140*DPR,h=56*DPR; ctx.drawImage(imgs.cow_base,sx-w/2,sy-h/2+20*DPR,w,h); }
     if(imgs.cow_body){ const w=120*DPR,h=100*DPR; ctx.drawImage(imgs.cow_body,sx-w/2,sy-h/2,w,h); }
-    const mx=sx+Math.cos(shooter.angle)*34*DPR, my=sy+Math.sin(shooter.angle)*34*DPR, bi=imgs["ball_"+shooter.current]||imgs.ball_base;
+    const mx=sx+Math.cos(shooter.angle)*34*DPR, my=sy+Math.sin(shooter.angle)*34*DPR;
+    const bi=imgs["ball_"+shooter.current]||imgs.ball_base;
     if(bi) ctx.drawImage(bi,mx-R()*0.9,my-R()*0.9,R()*1.8,R()*1.8);
-    ctx.save(); ctx.strokeStyle="rgba(255,255,255,0.7)"; ctx.lineWidth=2*DPR; ctx.setLineDash([6*DPR,6*DPR]); ctx.beginPath(); ctx.moveTo(mx,my);
-    ctx.lineTo(mx+Math.cos(shooter.angle)*600*DPR, my+Math.sin(shooter.angle)*600*DPR); ctx.stroke(); ctx.restore();
-    if(imgs.muzzle_flash && shooter.flashT>0){ const t=shooter.flashT/0.06, s=lerp(30,14,1-t)*DPR; ctx.globalAlpha=t; ctx.drawImage(imgs.muzzle_flash,mx-s/2,my-s/2,s,s); ctx.globalAlpha=1; }
-    if(imgs.cursor_reticle){ const rs=26*DPR; ctx.globalAlpha=.8; ctx.drawImage(imgs.cursor_reticle,pointer.x-rs/2,pointer.y-rs/2,rs,rs); ctx.globalAlpha=1; }
+
+    // aim line
+    ctx.save(); ctx.strokeStyle="rgba(255,255,255,0.7)"; ctx.lineWidth=2*DPR; ctx.setLineDash([6*DPR,6*DPR]);
+    ctx.beginPath(); ctx.moveTo(mx,my);
+    ctx.lineTo(mx+Math.cos(shooter.angle)*600*DPR, my+Math.sin(shooter.angle)*600*DPR);
+    ctx.stroke(); ctx.restore();
+
+    // muzzle flash
+    if(imgs.muzzle_flash && shooter.flashT>0){
+      const t=shooter.flashT/0.06, s=lerp(30,14,1-t)*DPR;
+      ctx.globalAlpha=t; ctx.drawImage(imgs.muzzle_flash,mx-s/2,my-s/2,s,s); ctx.globalAlpha=1;
+    }
+
+    // reticle
+    if(imgs.cursor_reticle){
+      const rs=26*DPR; ctx.globalAlpha=.8;
+      ctx.drawImage(imgs.cursor_reticle,pointer.x-rs/2,pointer.y-rs/2,rs,rs); ctx.globalAlpha=1;
+    }
   }
 
   function renderActivePU(ts){
