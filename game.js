@@ -12,9 +12,9 @@
     baseSpeed: 55,
     projectileSpeed: 600,
     insertDistanceThreshold: 17,
-    powerupSpawnChance: 0.07,
-    reverseDuration: 5.0,
-    slowDuration: 7.0,
+    powerupSpawnChance: 0.09,
+    reverseDuration: 7.0,
+    slowDuration: 9.0,
     slowFactor: 0.45,
     bombRadiusInBalls: 3,
     colors: [
