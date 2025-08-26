@@ -265,15 +265,39 @@
     }
 
     const delta=dir*speed*dt;
-    if(dir>0){
-      for(let i=chain.length-1;i>=0;i--){
-        const lead=(i===chain.length-1)?Infinity:chain[i+1].s-SP();
-        chain[i].s=Math.min(chain[i].s+delta,lead);
+     
+    if (dir > 0) {
+      // FORWARD: only the tail segment moves; front segments wait until pushed
+      const segs = getSegments();
+      if (segs.length) {
+        const [start0, end0] = segs[0]; // tail-most segment (lowest s)
+
+        // move the tail segment forward, but stop at the next segment’s first ball
+        for (let i = end0; i >= start0; i--) {
+          let lead;
+          if (i === end0) {
+            if (segs.length > 1) {
+              const nextStart = segs[1][0];
+              lead = chain[nextStart].s - SP();        // stop when contacting next segment
+            } else {
+              lead = Infinity;                         // no segment ahead
+            }
+          } else {
+            lead = chain[i + 1].s - SP();              // keep spacing to the ball ahead
+          }
+          chain[i].s = Math.min(chain[i].s + delta, lead);
+        }
+
+        // propagate PUSH into front segments once contact occurs
+        for (let i = end0 + 1; i < chain.length; i++) {
+          chain[i].s = Math.max(chain[i].s, chain[i - 1].s + SP());
+        }
       }
     } else {
-      for(let i=0;i<chain.length;i++){
-        const back=(i===0)?-Infinity:chain[i-1].s+SP();
-        chain[i].s=Math.max(chain[i].s+delta,back);
+      // REVERSE: whole chain moves backward together
+      for (let i = 0; i < chain.length; i++) {
+        const back = (i === 0) ? -Infinity : chain[i - 1].s + SP();
+        chain[i].s = Math.max(chain[i].s + delta, back);
       }
     }
 
@@ -380,6 +404,22 @@
       let L=tryIdx,R=tryIdx; while(L-1>=0&&chain[L-1].color===col)L--; while(R+1<chain.length&&chain[R+1].color===col)R++;
       const cnt=R-L+1; if(cnt>=3){ chain.splice(L,cnt); score+=cnt*10; $score.textContent=String(score); for(let i=L;i<chain.length;i++) chain[i].s-=SP()*0.25; }
     });
+  }
+
+  // Split the chain into contiguous segments (gaps > ~1 ball apart)
+  function getSegments() {
+    const segments = [];
+    if (!chain.length) return segments;
+    const GAP = SP() * 1.05; // threshold to consider "broken"
+    let start = 0;
+    for (let i = 1; i < chain.length; i++) {
+      if (chain[i].s - chain[i - 1].s > GAP) {
+        segments.push([start, i - 1]);
+        start = i;
+      }
+    }
+    segments.push([start, chain.length - 1]);
+    return segments;
   }
 
   function doBomb(centerS){
