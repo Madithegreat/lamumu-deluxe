@@ -5,7 +5,7 @@
   const ASSET_BASE = "./assets/img/";
 
   const GAME = {
-    durationSec: 10 * 60,
+    durationSec: 3 * 60,
     canvasMarginTop: 56,
     ballRadius: 18,
     ballSpacing: 36.5,
@@ -41,7 +41,7 @@
   hud.style.cssText = "height:56px;display:flex;align-items:center;gap:12px;padding:8px 12px;background:linear-gradient(0deg,#0006,#0000);backdrop-filter:blur(3px);";
   hud.innerHTML = `
     <img id="logo" alt="logo" style="height:36px;opacity:.9;display:none" />
-    <div class="pill" style="padding:.35rem .7rem;border-radius:999px;background:#ffffffe0;color:#111;font-weight:700">⏱ <span id="timer">10:00</span></div>
+    <div class="pill" style="padding:.35rem .7rem;border-radius:999px;background:#ffffffe0;color:#111;font-weight:700">⏱ <span id="timer">3:00</span></div>
     <div class="pill" style="padding:.35rem .7rem;border-radius:999px;background:#ffffffe0;color:#111;font-weight:700">Score <span id="score">0</span></div>
     <div id="activePU" style="display:flex;gap:8px;align-items:center;margin-left:auto"></div>
   `;
@@ -200,7 +200,7 @@
           ${imgs.logo ? `<img src="${imgs.logo.src}" alt="Lamumu Deluxe" style="max-width:420px;width:80%;height:auto;filter:drop-shadow(0 12px 28px rgba(0,0,0,.3))" />` : `<h1 style="margin:0;text-align:center">Lamumu Deluxe</h1>`}
         </div>
         <ul style="margin:.25rem 0 1rem 1.2rem; line-height:1.55; max-width:520px;">
-          <li>Survive for <b>10 minutes</b> — if the chain reaches the skull, you lose.</li>
+          <li>Survive for <b>3 minutes</b> — if the chain reaches the skull, you lose.</li>
           <li><b>Aim</b> with mouse/touch. <b>Click / tap</b> to shoot.</li>
           <li><b>Swap</b> the next ball with <b>Q</b> (desktop) or <b>double-tap</b> (mobile).</li>
           <li>Match <b>3+</b> of the same color to clear.</li>
@@ -223,7 +223,7 @@
     `);
   }
 
-  const win = ()=>{ state="won"; showEnd({title:"You Win! 🐄🌾", sub:`Survived 10 minutes.<br/>Final score: <b>${score}</b>`}); };
+  const win = ()=>{ state="won"; showEnd({title:"You Win! 🐄🌾", sub:`Survived 3 minutes.<br/>Final score: <b>${score}</b>`}); };
   const lose = ()=>{ state="lost"; showEnd({title:"They Reached the Barn! 💀", sub:`You lasted <b>${fmtTime(GAME.durationSec - timeLeft)}</b>.<br/>Final score: <b>${score}</b>`}); };
 
   // ---------- Segment helper (for correct gap behavior) ----------
