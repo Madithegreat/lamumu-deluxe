@@ -22,8 +22,10 @@
       { name: "green" }, { name: "purple" },
     ],
     anchorsPct: [
-      [0.08,0.30],[0.30,0.18],[0.55,0.32],[0.78,0.22],
-      [0.90,0.43],[0.70,0.62],[0.45,0.56],[0.22,0.76],[0.10,0.94],
+      [0.05,0.22],[0.25,0.12],[0.48,0.20],[0.72,0.10],[0.92,0.24],
+      [0.78,0.38],[0.55,0.32],[0.32,0.46],[0.10,0.38],
+      [0.22,0.58],[0.45,0.52],[0.68,0.66],[0.88,0.58],
+      [0.70,0.78],[0.44,0.72],[0.18,0.92],[0.06,0.98],
     ],
   };
 
@@ -104,12 +106,12 @@
   }
   addEventListener("resize",()=>{ resizeCanvas(); buildPath(); });
 
-  let pathPts=[], cumLen=[], pathLen=0, spawnMinS=-800;
+  let pathPts=[], cumLen=[], pathLen=0, spawnMinS=-1000;
   function buildPath(){
     const W = canvas.width, H = canvas.height - GAME.canvasMarginTop * DPR;
     const top = (GAME.canvasMarginTop + 6) * DPR;
     const anchors = GAME.anchorsPct.map(([px,py])=>({ x:px*W, y: top + py*(H-top) }));
-    const SEG=28, pts=[];
+    const SEG=36, pts=[];
     for (let i=0;i<anchors.length-1;i++){
       const p0=anchors[Math.max(0,i-1)], p1=anchors[i], p2=anchors[i+1], p3=anchors[Math.min(anchors.length-1,i+2)];
       for (let s=0;s<SEG;s++) pts.push(catmullRom(p0,p1,p2,p3,s/SEG));
