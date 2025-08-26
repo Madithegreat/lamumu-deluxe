@@ -9,13 +9,13 @@
     canvasMarginTop: 56,
     ballRadius: 18,
     ballSpacing: 36.5,
-    baseSpeed: 60,           // slower chain (was 80)
+    baseSpeed: 55,           // slower chain (was 80)
     projectileSpeed: 540,    // slightly slower shots (was 600)
     insertDistanceThreshold: 17,
-    powerupSpawnChance: 0.07,
-    reverseDuration: 5.0,
-    slowDuration: 7.0,
-    slowFactor: 0.55,
+    powerupSpawnChance: 0.09,
+    reverseDuration: 7.0,
+    slowDuration: 9.0,
+    slowFactor: 0.45,
     bombRadiusInBalls: 3,
     colors: [
       { name: "red" }, { name: "blue" }, { name: "yellow" },
