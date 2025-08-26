@@ -73,29 +73,25 @@ img { -webkit-user-drag: none; user-drag: none; }
 .help-points { margin: .25rem 0 1rem 1.2rem; line-height: 1.55; }
 .help-points li { margin: .35rem 0; }
 
-/* Close button */
 .help-card .close {
   display: inline-block; padding: .6rem 1rem; border-radius: 12px;
   background: var(--ink); color: #fff; text-decoration: none;
   font-weight: 700; box-shadow: 0 10px 24px rgba(0,0,0,.25);
 }
 
-/* Image button wrapper: image primary, text fallback */
-.img-btn {
-  display: inline-grid; place-items: center; margin: 0 .6rem 1rem;
-  text-decoration: none;
+/* ===== Shared primary button used in splash & end screens ===== */
+.primary-btn {
+  border: 0;
+  border-radius: 14px;
+  padding: .8rem 1.2rem;
+  background: #111;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
 }
-.img-btn img {
-  width: 160px; height: auto; image-rendering: auto;
-  filter: drop-shadow(0 8px 18px rgba(0,0,0,.35));
-}
-.img-btn .fallback {
-  display: none;
-  padding: .6rem 1rem; border-radius: 12px;
-  background: var(--ink); color: #fff; font-weight: 700;
-}
-.img-btn img:not([src]), .img-btn img[src=""] { display: none; }
-.img-btn img:not([src]) + .fallback, .img-btn img[src=""] + .fallback { display: inline-block; }
+.primary-btn:active { transform: translateY(1px); }
 
 /* Utility pill */
 .pill {
