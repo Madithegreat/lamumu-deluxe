@@ -7,17 +7,48 @@
     <meta name="theme-color" content="#2e7d32" />
     <link rel="stylesheet" href="./style.css" />
     <link rel="preload" as="image" href="./assets/img/bg_grass_1920.jpg" />
-    <link rel="preload" as="image" href="./assets/img/skull_end.png" />
+    <link rel="preload" as="image" href="./assets/img/logo.png" />
   </head>
   <body>
     <noscript>
-      <div class="nojs">
-        Lamumu Deluxe needs JavaScript enabled. Please enable JS to play.
-      </div>
+      <div class="nojs">Lamumu Deluxe needs JavaScript enabled. Please enable JS to play.</div>
     </noscript>
 
-    <!-- Settings (How to Play) -->
-    <a id="settingsBtn" class="pulse" href="#help" aria-haspopup="dialog" aria-controls="help" aria-label="Open settings / how to play">⚙️</a>
+    <!-- Brand badge (fixed at the top-left) -->
+    <a
+      id="brandBadge"
+      href="https://x.com/zeshthegreat"
+      target="_blank"
+      rel="noopener"
+      title="Visit MD on X"
+      style="
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 1600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: .28rem .6rem;
+        border-radius: 999px;
+        background: rgba(0,0,0,.25);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 800;
+        letter-spacing: .15px;
+        line-height: 1;
+        backdrop-filter: blur(2px);
+        box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      "
+    >
+      <span style="opacity:.9;font-weight:700">made by</span>
+      <span style="text-decoration:underline">MD</span>
+      <span style="opacity:.9">with</span>
+      <span aria-hidden="true">❤️</span>
+    </a>
+
+    <!-- Settings (How to Play) — JS opens/closes this modal; no :target -->
+    <button id="settingsBtn" class="pulse" type="button" aria-haspopup="dialog" aria-controls="help" aria-label="Open settings / how to play">⚙️</button>
 
     <div id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" class="help-modal">
       <div class="help-card">
@@ -29,11 +60,11 @@
           <li>Match <b>3+</b> of the same color to clear.</li>
           <li>Powerups (pop to trigger): <b>Reverse</b> (5s), <b>Slow</b> (7s), <b>Bomb</b> (area clear).</li>
         </ul>
-        <a id="helpClose" class="close" href="#" data-action="close-help" aria-label="Close settings">Close</a>
+        <button class="close" data-action="close-help" type="button" aria-label="Close settings">Close</button>
       </div>
     </div>
 
-    <!-- game.js builds HUD, canvas, overlays -->
+    <!-- One script only -->
     <script src="./game.js" defer></script>
   </body>
 </html>
