@@ -14,18 +14,15 @@
       <div class="nojs">Lamumu Deluxe needs JavaScript enabled. Please enable JS to play.</div>
     </noscript>
 
-    <!-- Brand badge (fixed at the top-left) -->
-    <a
+    <!-- Centered brand badge (only "MD" is clickable) -->
+    <div
       id="brandBadge"
-      href="https://x.com/zeshthegreat"
-      target="_blank"
-      rel="noopener"
-      title="Visit MD on X"
       style="
         position: fixed;
         top: 10px;
-        left: 10px;
-        z-index: 1600;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1400; /* below the settings button (1500) so the gear remains clickable */
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -33,19 +30,25 @@
         border-radius: 999px;
         background: rgba(0,0,0,.25);
         color: #fff;
-        text-decoration: none;
         font-weight: 800;
         letter-spacing: .15px;
         line-height: 1;
         backdrop-filter: blur(2px);
         box-shadow: 0 6px 18px rgba(0,0,0,.25);
+        pointer-events: none; /* container ignores clicks, link inside still clickable */
       "
     >
-      <span style="opacity:.9;font-weight:700">made by</span>
-      <span style="text-decoration:underline">MD</span>
-      <span style="opacity:.9">with</span>
-      <span aria-hidden="true">❤️</span>
-    </a>
+      <span style="opacity:.9;font-weight:700;pointer-events:none;">made by</span>
+      <a
+        href="https://x.com/zeshthegreat"
+        target="_blank"
+        rel="noopener"
+        title="Visit MD on X"
+        style="text-decoration:underline; color:#fff; pointer-events:auto;"
+      >MD</a>
+      <span style="opacity:.9;pointer-events:none;">with</span>
+      <span aria-hidden="true" style="pointer-events:none;">❤️</span>
+    </div>
 
     <!-- Settings (How to Play) — JS opens/closes this modal; no :target -->
     <button id="settingsBtn" class="pulse" type="button" aria-haspopup="dialog" aria-controls="help" aria-label="Open settings / how to play">⚙️</button>
