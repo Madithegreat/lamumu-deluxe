@@ -4,16 +4,16 @@
    ========================================================================= */
 
 (() => {
-  const ASSET_BASE = "./assets/img/"; // path to your images
+  const ASSET_BASE = "./assets/img/";
 
   const GAME = {
-    durationSec: 10 * 60,         // 10 minutes
-    canvasMarginTop: 56,          // HUD height
-    ballRadius: 18,               // px at DPR=1
-    ballSpacing: 36.5,            // center-to-center
-    baseSpeed: 80,                // px/s along path at DPR=1
-    projectileSpeed: 600,         // px/s
-    insertDistanceThreshold: 17,  // px at DPR=1
+    durationSec: 10 * 60,
+    canvasMarginTop: 56,
+    ballRadius: 18,
+    ballSpacing: 36.5,
+    baseSpeed: 80,
+    projectileSpeed: 600,
+    insertDistanceThreshold: 17,
     powerupSpawnChance: 0.07,
     reverseDuration: 5.0,
     slowDuration: 7.0,
@@ -32,9 +32,11 @@
     ],
   };
 
-  // --------------------- Basic DOM ----------------------
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
 
+  // ---------- Root + HUD + Canvas ----------
   const root = document.createElement("div");
   root.style.cssText = "position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr;background:#1b5e20;color:#fff;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;user-select:none;overscroll-behavior:none;";
   document.body.style.margin = "0";
@@ -44,8 +46,8 @@
   hud.style.cssText = "height:56px;display:flex;align-items:center;gap:12px;padding:8px 12px;background:linear-gradient(0deg,#0006,#0000);backdrop-filter:blur(3px);";
   hud.innerHTML = `
     <img id="logo" alt="logo" style="height:36px;opacity:.9;display:none" />
-    <div class="pill" id="pillTimer" style="padding:.35rem .7rem;border-radius:999px;background:#ffffffe0;color:#111;font-weight:700">⏱ <span id="timer">10:00</span></div>
-    <div class="pill" id="pillScore" style="padding:.35rem .7rem;border-radius:999px;background:#ffffffe0;color:#111;font-weight:700">Score <span id="score">0</span></div>
+    <div class="pill" style="padding:.35rem .7rem;border-radius:999px;background:#ffffffe0;color:#111;font-weight:700">⏱ <span id="timer">10:00</span></div>
+    <div class="pill" style="padding:.35rem .7rem;border-radius:999px;background:#ffffffe0;color:#111;font-weight:700">Score <span id="score">0</span></div>
     <div id="activePU" style="display:flex;gap:8px;align-items:center;margin-left:auto"></div>
   `;
   root.appendChild(hud);
@@ -56,23 +58,36 @@
   root.appendChild(canvas);
   const ctx = canvas.getContext("2d");
 
-  // Reusable overlay (splash + end screens)
   const overlay = document.createElement("div");
-  overlay.style.cssText = "position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:#0008;backdrop-filter:blur(2px);";
+  overlay.style.cssText = "position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:#0008;backdrop-filter:blur(2px);z-index:1200;pointer-events:auto;";
   overlay.hidden = true;
   document.body.appendChild(overlay);
 
-  // Handles to Settings modal
+  // DOM refs
   const settingsBtn = document.getElementById("settingsBtn");
-  const helpClose  = document.getElementById("helpClose");
-
-  // HUD refs
   const $timer = hud.querySelector("#timer");
   const $score = hud.querySelector("#score");
   const $activePU = hud.querySelector("#activePU");
   const $logo = hud.querySelector("#logo");
 
-  // --------------------- Assets -------------------------
+  // ---------- Global delegated clicks (robust) ----------
+  document.addEventListener("click", (e) => {
+    const control = e.target.closest("[data-action]");
+    if (!control) return;
+
+    const act = control.getAttribute("data-action");
+    if (act === "start" || act === "retry") {
+      e.preventDefault();
+      closeHelp();
+      resetGame();        // <-- always start the game
+    } else if (act === "close-help") {
+      e.preventDefault();
+      closeHelp();
+      if (state === "splash") overlay.hidden = false;
+    }
+  });
+
+  // ---------- Assets ----------
   const IMGS = {
     cow_base: "cow_base.png",
     cow_body: "cow_body.png",
@@ -110,10 +125,7 @@
     })));
   }
 
-  // ---------------- Utilities + Geometry ----------------
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const lerp = (a, b, t) => a + (b - a) * t;
-
+  // ---------- Geometry / Path ----------
   function resizeCanvas() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -124,14 +136,12 @@
   }
   window.addEventListener("resize", () => { resizeCanvas(); buildPath(); });
 
-  // Path via Catmull-Rom interpolation
   let pathPts = [], cumLen = [], pathLen = 0, spawnMinS = -800;
   function buildPath() {
     const W = canvas.width, H = canvas.height - GAME.canvasMarginTop * DPR;
     const topOffset = (GAME.canvasMarginTop + 6) * DPR;
     const anchors = GAME.anchorsPct.map(([px, py]) => ({
-      x: px * W,
-      y: topOffset + py * (H - topOffset)
+      x: px * W, y: topOffset + py * (H - topOffset)
     }));
     const SEG = 28, pts = [];
     for (let i = 0; i < anchors.length - 1; i++) {
@@ -183,17 +193,17 @@
     return bestS;
   }
 
-  // -------------------- Game State ----------------------
-  const R = () => GAME.ballRadius * DPR;
-  const SP = () => GAME.ballSpacing * DPR;
+  // ---------- Game state ----------
+  const R  = () => GAME.ballRadius   * DPR;
+  const SP = () => GAME.ballSpacing  * DPR;
 
-  let state = "splash"; // "splash" | "playing" | "won" | "lost"
+  let state = "splash";
   let score = 0;
   let timeLeft = GAME.durationSec;
   let startTs = 0;
   let paused = false;
 
-  const pointer = { x: 0, y: 0, down: false, lastTapTs: 0 };
+  const pointer = { x: 0, y: 0, lastTapTs: 0 };
   const shooter = {
     x: () => canvas.width / 2,
     y: () => canvas.height - 110 * DPR,
@@ -210,7 +220,7 @@
   const sparkles = [];
   const bursts = [];
 
-  // ------------------- Input ----------------------------
+  // ---------- Input on canvas ----------
   function setPointerFromEvent(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
     pointer.x = (clientX - rect.left) * DPR;
@@ -255,12 +265,12 @@
       color: shooter.current
     });
     shooter.current = shooter.next;
-    shooter.next = GAME.colors[(Math.random() * GAME.colors.length) | 0].name;
+    shooter.next = pickColor();
     shooter.cooldown = 0.12;
     shooter.flashT = 0.06;
   }
 
-  // ------------------- Game Flow ------------------------
+  // ---------- Flow ----------
   function resetGame() {
     score = 0;
     timeLeft = GAME.durationSec;
@@ -268,15 +278,15 @@
     effects.reverseUntil = 0; effects.slowUntil = 0;
     chain.length = 0; fired.length = 0; sparkles.length = 0; bursts.length = 0;
 
-    shooter.current = GAME.colors[(Math.random() * GAME.colors.length) | 0].name;
-    shooter.next = GAME.colors[(Math.random() * GAME.colors.length) | 0].name;
+    shooter.current = pickColor();
+    shooter.next = pickColor();
     shooter.cooldown = 0; shooter.flashT = 0;
 
     buildPath();
 
     let s = -SP() * 10;
     for (let i = 0; i < 20; i++) {
-      chain.push({ s, color: GAME.colors[(Math.random() * GAME.colors.length) | 0].name, pu: maybePowerup() });
+      chain.push(makeBall(s, pickColor(), maybePowerup()));
       s += SP();
     }
 
@@ -288,6 +298,8 @@
     settingsBtn && settingsBtn.classList.remove("pulse");
   }
 
+  function pickColor() { return GAME.colors[(Math.random() * GAME.colors.length) | 0].name; }
+  function makeBall(s, colorName, pu) { return { s, color: colorName, pu: pu || null }; }
   function maybePowerup() {
     if (Math.random() < GAME.powerupSpawnChance) {
       const arr = ["reverse", "slow", "bomb"];
@@ -296,7 +308,6 @@
     return null;
   }
 
-  // Start / End overlays
   function showSplash() {
     state = "splash";
     overlay.hidden = false;
@@ -308,15 +319,10 @@
         <p style="margin:.25rem 0 1rem 0;line-height:1.55">
           Tap <b>⚙️ Settings</b> (top-right) for a quick guide, or start now.
         </p>
-        <button id="btnStart" class="primary-btn">Start Game</button>
+        <button class="primary-btn" data-action="start">Start Game</button>
       </div>
     `;
     settingsBtn && settingsBtn.classList.add("pulse");
-    overlay.querySelector("#btnStart").addEventListener("click", (e) => {
-      e.preventDefault();
-      closeHelp();
-      resetGame();
-    });
   }
 
   function showEndOverlay({ title, sub }) {
@@ -325,14 +331,9 @@
       <div style="max-width:760px;background:#ffffffe6;color:#111;border-radius:18px;padding:18px 20px;box-shadow:0 24px 60px #0006;text-align:center">
         <h2 style="margin:.2rem 0 .6rem 0;font-size:1.4rem">${title}</h2>
         <p style="margin:.25rem 0 1rem 0;line-height:1.55">${sub}</p>
-        <button id="btnRetry" class="primary-btn">Start Game</button>
+        <button class="primary-btn" data-action="retry">Start Game</button>
       </div>
     `;
-    overlay.querySelector("#btnRetry").addEventListener("click", (e) => {
-      e.preventDefault();
-      closeHelp();
-      resetGame();
-    });
   }
 
   function win() {
@@ -350,23 +351,19 @@
     });
   }
 
-  // --- Hash helpers: reliably close the :target modal ---
+  // Close the :target help reliably
   function closeHelp() {
     if (location.hash === "#help") {
       if (history.replaceState) history.replaceState(null, "", location.pathname + location.search);
       else location.hash = "";
     }
   }
-  // Hide splash overlay while Help is open (avoid click overlap)
   window.addEventListener("hashchange", () => {
     if (location.hash === "#help") overlay.hidden = true;
     else if (state === "splash") overlay.hidden = false;
   });
 
-  // Settings modal Close
-  helpClose?.addEventListener("click", (e) => { e.preventDefault(); closeHelp(); });
-
-  // ------------------- Update Loop ----------------------
+  // ---------- Update / Draw ----------
   let lastTs = performance.now();
   function gameLoop(ts) {
     const dt = Math.min(0.033, (ts - lastTs) / 1000);
@@ -377,31 +374,26 @@
   }
 
   function update(dt, ts) {
-    // timer
     timeLeft = Math.max(0, GAME.durationSec - (ts - startTs) / 1000);
     $timer.textContent = fmtTime(timeLeft);
 
-    // cooldowns / aiming
     shooter.cooldown = Math.max(0, shooter.cooldown - dt);
-    shooter.flashT = Math.max(0, shooter.flashT - dt);
+    shooter.flashT   = Math.max(0, shooter.flashT   - dt);
     const dx = pointer.x - shooter.x(), dy = pointer.y - shooter.y();
     shooter.angle = Math.atan2(dy, dx);
 
-    // effects & movement
     const reverseActive = ts < effects.reverseUntil * 1000;
-    const slowActive = ts < effects.slowUntil * 1000;
-    const dir = reverseActive ? -1 : 1;
+    const slowActive    = ts < effects.slowUntil    * 1000;
+    const dir   = reverseActive ? -1 : 1;
     const speed = (GAME.baseSpeed * (slowActive ? GAME.slowFactor : 1)) * DPR;
 
-    // keep tail fed
     if (timeLeft > 0) {
       const minS = chain.length ? chain[0].s : 0;
       while (minS > spawnMinS) {
-        chain.unshift({ s: chain[0] ? chain[0].s - SP() : -SP(), color: GAME.colors[(Math.random()*GAME.colors.length)|0].name, pu: maybePowerup() });
+        chain.unshift(makeBall(chain[0] ? chain[0].s - SP() : -SP(), pickColor(), maybePowerup()));
       }
     }
 
-    // move chain w/ spacing
     const delta = dir * speed * dt;
     if (dir > 0) {
       for (let i = chain.length - 1; i >= 0; i--) {
@@ -415,7 +407,6 @@
       }
     }
 
-    // projectiles & insertion
     for (let i = fired.length - 1; i >= 0; i--) {
       const b = fired[i];
       b.x += b.vx * dt; b.y += b.vy * dt;
@@ -425,7 +416,7 @@
       const d = Math.hypot(p.x - b.x, p.y - b.y);
       if (d < (GAME.insertDistanceThreshold * DPR)) {
         let idx = 0; while (idx < chain.length && chain[idx].s < sHit) idx++;
-        chain.splice(idx, 0, { s: sHit, color: b.color, pu: null });
+        chain.splice(idx, 0, makeBall(sHit, b.color, null));
         fired.splice(i, 1);
         settleAround(idx);
         handleMatchesAndPowerups(idx);
@@ -433,12 +424,10 @@
       }
     }
 
-    // win/lose
     const head = chain[chain.length - 1];
     if (head && head.s >= pathLen - SP() * 1.2) lose();
     else if (timeLeft <= 0) win();
 
-    // visuals lifetimes
     for (let k = sparkles.length - 1; k >= 0; k--) { sparkles[k].t += dt; if (sparkles[k].t >= sparkles[k].life) sparkles.splice(k, 1); }
     for (let k = bursts.length - 1; k >= 0; k--) { bursts[k].t += dt; if (bursts[k].t >= bursts[k].life) bursts.splice(k, 1); }
 
@@ -469,15 +458,13 @@
       let hasReverse = removed.some(b => b.pu === "reverse");
       let hasSlow = removed.some(b => b.pu === "slow");
       let hasBomb = removed.some(b => b.pu === "bomb");
-
       const now = performance.now() / 1000;
       if (hasReverse) effects.reverseUntil = Math.max(effects.reverseUntil, now + GAME.reverseDuration);
-      if (hasSlow) effects.slowUntil = Math.max(effects.slowUntil, now + GAME.slowDuration);
+      if (hasSlow)    effects.slowUntil    = Math.max(effects.slowUntil,    now + GAME.slowDuration);
       if (hasBomb) {
         const midS = removed[Math.floor(removed.length / 2)].s;
         doBomb(midS);
       }
-
       const checkIdx = Math.max(0, L - 1);
       if (checkIdx < chain.length) chainReactionCheck(checkIdx);
     }
@@ -520,12 +507,11 @@
     return `${m}:${r.toString().padStart(2, "0")}`;
   }
 
-  // --------------- Drawing ------------------------------
+  // ---------- Drawing ----------
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground();
 
-    // subtle path ribbon
     ctx.save();
     ctx.strokeStyle = "rgba(255,255,255,0.04)";
     ctx.lineWidth = 14 * DPR; ctx.lineCap = "round";
@@ -534,14 +520,12 @@
     ctx.stroke();
     ctx.restore();
 
-    // skull end
     const end = pathPts[pathPts.length - 1];
     if (imgs.skull_end) {
       const sz = 46 * DPR;
       ctx.drawImage(imgs.skull_end, end.x - sz / 2, end.y - sz / 2, sz, sz);
     }
 
-    // effect rings near head
     const nowS = performance.now() / 1000;
     const head = chain[chain.length - 1];
     if (head) {
@@ -558,7 +542,6 @@
       }
     }
 
-    // chain
     for (let i = 0; i < chain.length; i++) {
       const b = chain[i], p = posAtS(b.s);
       if (imgs.ball_shadow) {
@@ -577,7 +560,6 @@
       }
     }
 
-    // bursts
     for (const ex of bursts) {
       const t = ex.t / ex.life; const scale = lerp(0.6, 1.8, t); const alpha = 1 - t;
       const img = imgs.explosion_burst;
@@ -589,7 +571,6 @@
       }
     }
 
-    // projectiles
     for (const f of fired) {
       const bi = imgs["ball_" + f.color] || imgs.ball_base;
       const size = R() * 1.8;
@@ -597,7 +578,6 @@
       if (imgs.ball_shadow) ctx.drawImage(imgs.ball_shadow, f.x - 12 * DPR, f.y + 10 * DPR, 24 * DPR, 10 * DPR);
     }
 
-    // sparkles
     for (const s of sparkles) {
       const t = s.t / s.life; const a = 1 - t; const size = lerp(12, 28, t) * DPR;
       if (imgs.sparkle) {
@@ -607,7 +587,6 @@
       }
     }
 
-    // shooter
     drawShooter();
   }
 
@@ -629,7 +608,6 @@
 
   function drawShooter() {
     const sx = shooter.x(), sy = shooter.y();
-
     if (imgs.cow_base) {
       const w = 140 * DPR, h = 56 * DPR;
       ctx.drawImage(imgs.cow_base, sx - w / 2, sy - h / 2 + 20 * DPR, w, h);
@@ -638,13 +616,11 @@
       const w = 120 * DPR, h = 100 * DPR;
       ctx.drawImage(imgs.cow_body, sx - w / 2, sy - h / 2, w, h);
     }
-
     const mx = sx + Math.cos(shooter.angle) * 34 * DPR;
     const my = sy + Math.sin(shooter.angle) * 34 * DPR;
     const bi = imgs["ball_" + shooter.current] || imgs.ball_base;
     if (bi) ctx.drawImage(bi, mx - R() * 0.9, my - R() * 0.9, R() * 1.8, R() * 1.8);
 
-    // aim line
     ctx.save();
     ctx.strokeStyle = "rgba(255,255,255,0.7)";
     ctx.lineWidth = 2 * DPR; ctx.setLineDash([6 * DPR, 6 * DPR]);
@@ -652,8 +628,7 @@
     ctx.lineTo(mx + Math.cos(shooter.angle) * 600 * DPR, my + Math.sin(shooter.angle) * 600 * DPR);
     ctx.stroke(); ctx.restore();
 
-    // muzzle flash
-    if (shooter.flashT > 0 && imgs.muzzle_flash) {
+    if (imgs.muzzle_flash && shooter.flashT > 0) {
       const t = shooter.flashT / 0.06;
       const s = lerp(30, 14, 1 - t) * DPR;
       ctx.globalAlpha = t;
@@ -661,7 +636,6 @@
       ctx.globalAlpha = 1;
     }
 
-    // cursor reticle
     if (imgs.cursor_reticle) {
       const rs = 26 * DPR;
       ctx.globalAlpha = 0.8;
@@ -688,7 +662,7 @@
     if (now < effects.slowUntil && imgs.hud_slow) addIcon("hud_slow", effects.slowUntil);
   }
 
-  // ---------------- Boot & UI ---------------------------
+  // ---------- Boot ----------
   function init() {
     resizeCanvas();
     buildPath();
@@ -701,19 +675,6 @@
   function setupLogo() {
     if (imgs.logo) { $logo.src = imgs.logo.src; $logo.style.display = "block"; }
   }
-
-  // Close settings modal
-  function closeHelp() {
-    if (location.hash === "#help") {
-      if (history.replaceState) history.replaceState(null, "", location.pathname + location.search);
-      else location.hash = "";
-    }
-  }
-  helpClose?.addEventListener("click", (e) => { e.preventDefault(); closeHelp(); });
-  window.addEventListener("hashchange", () => {
-    if (location.hash === "#help") overlay.hidden = true;
-    else if (state === "splash") overlay.hidden = false;
-  });
 
   loadImages(IMGS).then(() => { setupLogo(); init(); })
   .catch(err => {
