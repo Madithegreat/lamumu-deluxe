@@ -279,18 +279,63 @@
 
     // Projectiles & insertion
     for(let i=fired.length-1;i>=0;i--){
-      const b=fired[i]; b.x+=b.vx*dt; b.y+=b.vy*dt;
-      if(b.x<-100||b.y<-100||b.x>canvas.width+100||b.y>canvas.height+100){ fired.splice(i,1); continue; }
-      const sHit=nearestSForPoint(b.x,b.y), p=posAtS(sHit);
-      if(Math.hypot(p.x-b.x,p.y-b.y)<(GAME.insertDistanceThreshold*DPR)){
-        let idx=0; while(idx<chain.length && chain[idx].s<sHit) idx++;
-        chain.splice(idx,0,{s:sHit,color:b.color,pu:null});
-        fired.splice(i,1);
-        settleAround(idx);
-        handleMatchesAndPowerups(idx);
-        sparkles.push({x:p.x,y:p.y,t:0,life:0.25});
+      const b = fired[i];
+      // advance
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+   
+      // cull off-screen
+      if (b.x < -100 || b.y < -100 || b.x > canvas.width + 100 || b.y > canvas.height + 100) {
+        fired.splice(i, 1);
+        continue;
       }
-    }
+   
+      if (!chain.length) continue;
+   
+      // project shot to path
+      const sHit = nearestSForPoint(b.x, b.y);
+      const pOnPath = posAtS(sHit);
+   
+      // find nearest chain ball in "s" space
+      let nearestIdx = 0;
+      let nearestDiff = Math.abs(chain[0].s - sHit);
+      for (let j = 1; j < chain.length; j++) {
+        const d = Math.abs(chain[j].s - sHit);
+        if (d < nearestDiff) { nearestDiff = d; nearestIdx = j; }
+      }
+   
+      // distances
+      const bp = posAtS(chain[nearestIdx].s);
+      const distToBall = Math.hypot(bp.x - b.x, bp.y - b.y);
+      const distToPath = Math.hypot(pOnPath.x - b.x, pOnPath.y - b.y);
+   
+      // thresholds (tweakable)
+      const CONTACT_DIST = R() * 1.9;      // must actually touch a ball
+      const S_MAX_GAP    = SP() * 0.95;    // shot must be near that ball along the path
+      const PATH_SNAP    = R() * 1.3;      // also be close to the path centerline
+   
+      // insert only if we're contacting the chain (not just the empty path)
+      if (distToBall <= CONTACT_DIST && nearestDiff <= S_MAX_GAP && distToPath <= PATH_SNAP) {
+        // choose before/after nearest depending on s
+        let insertIdx = (sHit > chain[nearestIdx].s) ? (nearestIdx + 1) : nearestIdx;
+   
+        // clamp s a little between neighbors to avoid huge overlaps; settle will finish it
+        let sInsert = sHit;
+        const leftS  = (insertIdx > 0) ? chain[insertIdx - 1].s : -Infinity;
+        const rightS = (insertIdx < chain.length) ? chain[insertIdx].s :  Infinity;
+        const EPS = SP() * 0.08;
+        if (isFinite(leftS))  sInsert = Math.max(sInsert, leftS  + EPS);
+        if (isFinite(rightS)) sInsert = Math.min(sInsert, rightS - EPS);
+   
+        chain.splice(insertIdx, 0, makeBall(sInsert, b.color, null));
+        fired.splice(i, 1);
+   
+        settleAround(insertIdx);
+        handleMatchesAndPowerups(insertIdx);
+   
+        sparkles.push({ x: pOnPath.x, y: pOnPath.y, t: 0, life: 0.25 });
+      }
+    }      
 
     // Win / Lose
     const head=chain[chain.length-1];
