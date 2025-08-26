@@ -1,7 +1,6 @@
 /* =========================================================================
    Lamumu Deluxe — Single 10-min Survival (Reverse/Slow/Bomb)
    Assets in ./assets/img/
-   Play/Retry image filenames are configurable below.
    ========================================================================= */
 
 (() => {
@@ -75,10 +74,11 @@
   overlay.hidden = true;
   document.body.appendChild(overlay);
 
-  // Handles to existing DOM (settings modal + play image)
+  // Handles to existing DOM (settings modal + play/close buttons)
   const settingsBtn = document.getElementById("settingsBtn");
   const helpModal  = document.getElementById("help");
   const helpPlay   = document.getElementById("playImgBtn");
+  const helpClose  = document.getElementById("helpClose");
 
   // HUD refs
   const $timer = hud.querySelector("#timer");
@@ -355,7 +355,8 @@
     const btn = document.getElementById("endImgBtn");
     btn?.addEventListener("click", (e) => {
       e.preventDefault();
-      if (type === "retry" || type === "play") resetGame(); else resetGame();
+      closeHelp(); // just to be safe, ensure no hash
+      resetGame();
     });
   }
 
@@ -376,12 +377,36 @@
     });
   }
 
+  // --- Hash helpers to reliably close the :target modal ---
+  function closeHelp() {
+    if (location.hash === "#help") {
+      if (history.replaceState) {
+        history.replaceState(null, "", location.pathname + location.search);
+      } else {
+        // fallback
+        location.hash = "";
+      }
+    }
+  }
+  // Keep splash overlay hidden while help is open (so clicks won't fight)
+  window.addEventListener("hashchange", () => {
+    if (location.hash === "#help") {
+      overlay.hidden = true;
+    } else if (state === "splash") {
+      overlay.hidden = false;
+    }
+  });
+
   // Settings modal Play image button starts game
   helpPlay?.addEventListener("click", (e) => {
     e.preventDefault();
-    // close modal
-    if (location.hash === "#help") history.replaceState(null, "", " ");
+    closeHelp();
     resetGame();
+  });
+  // Settings modal Close button
+  helpClose?.addEventListener("click", (e) => {
+    e.preventDefault();
+    closeHelp();
   });
 
   // ------------------- Update Loop ----------------------
